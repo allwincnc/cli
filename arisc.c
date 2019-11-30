@@ -852,10 +852,10 @@ int32_t parse_and_exec(const char *str)
     # use PA15 pin for the channel 0 output \n\
     %s \"stepgen_pin_setup(0,0,PA,15,0)\" \n\
 \n\
-    # change step frequency to 100KHz (duty 10%)\n\
+    # change step frequency to 100KHz (duty 10%%) \n\
     %s \"stepgen_time_setup(0,0,9000,1000)\" \n\
 \n\
-    # change DIR period to 1ms (duty 50%)\n\
+    # change DIR period to 1ms (duty 50%%) \n\
     %s \"stepgen_time_setup(0,1,500000,500000)\" \n\
 \n\
     # make 100 forward pulses \n\
@@ -882,7 +882,8 @@ int32_t parse_and_exec(const char *str)
 \n",
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
-            app_name, app_name, app_name, app_name, app_name, app_name, app_name
+            app_name, app_name, app_name, app_name, app_name, app_name, app_name,
+            app_name
         );
         return 0;
     }
@@ -990,7 +991,7 @@ int32_t parse_and_exec(const char *str)
     if ( !reg_match(str, "stepgen_time_setup *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
     {
 #if !TEST
-        stepgen_task_update(arg[0], arg[1], arg[2], arg[3]);
+        stepgen_time_setup(arg[0], arg[1], arg[2], arg[3]);
 #endif
         printf("OK\n");
         return 0;
