@@ -239,63 +239,41 @@ void stepgen_pin_setup(uint8_t c, uint8_t type, uint8_t port, uint8_t pin, uint8
 /**
  * @brief   add a new task for the selected channel
  *
- * @param   c               channel id
- * @param   type            0:step, 1:dir
- * @param   pulses          number of pulses (ignored for DIR task)
- * @param   pin_low_time    pin LOW state duration (in nanoseconds)
- * @param   pin_high_time   pin HIGH state duration (in nanoseconds)
+ * @param   c           channel id
+ * @param   pulses      number of pulses
  *
  * @retval  none
  */
-void stepgen_task_add(uint8_t c, uint8_t type, uint32_t pulses, uint32_t pin_low_time, uint32_t pin_high_time)
+void stepgen_task_add(uint8_t c, int32_t pulses)
 {
     u32_10_t *tx = (u32_10_t*) msg_buf;
 
     tx->v[0] = c;
-    tx->v[1] = type;
-    tx->v[2] = pulses;
-    tx->v[3] = pin_low_time;
-    tx->v[4] = pin_high_time;
+    tx->v[1] = pulses;
 
-    msg_send(STEPGEN_MSG_TASK_ADD, msg_buf, 5*4, 0);
+    msg_send(STEPGEN_MSG_TASK_ADD, msg_buf, 2*4, 0);
 }
 
 /**
  * @brief   update time values for the current task
  *
- * @param   c               channel id
- * @param   type            0:step, 1:dir
- * @param   pin_low_time    pin LOW state duration (in nanoseconds)
- * @param   pin_high_time   pin HIGH state duration (in nanoseconds)
+ * @param   c       channel id
+ * @param   type    0:step, 1:dir
+ * @param   t0      pin LOW state duration (in nanoseconds)
+ * @param   t1      pin HIGH state duration (in nanoseconds)
  *
  * @retval  none
  */
-void stepgen_task_update(uint8_t c, uint8_t type, uint32_t pin_low_time, uint32_t pin_high_time)
+void stepgen_time_setup(uint8_t c, uint8_t type, uint32_t t0, uint32_t t1)
 {
     u32_10_t *tx = (u32_10_t*) msg_buf;
 
     tx->v[0] = c;
     tx->v[1] = type;
-    tx->v[2] = pin_low_time;
-    tx->v[3] = pin_high_time;
+    tx->v[2] = t0;
+    tx->v[3] = t1;
 
-    msg_send(STEPGEN_MSG_TASK_UPDATE, msg_buf, 4*4, 0);
-}
-
-/**
- * @brief   abort all tasks for the selected channel
- * @param   c       channel id
- * @param   all     abort all task?
- * @retval  none
- */
-void stepgen_abort(uint8_t c, uint8_t all)
-{
-    u32_10_t *tx = (u32_10_t*) msg_buf;
-
-    tx->v[0] = c;
-    tx->v[1] = all;
-
-    msg_send(STEPGEN_MSG_ABORT, msg_buf, 2*4, 0);
+    msg_send(STEPGEN_MSG_TIME_SETUP, msg_buf, 4*4, 0);
 }
 
 /**
@@ -336,22 +314,6 @@ void stepgen_pos_set(uint8_t c, int32_t pos)
     tx->v[1] = (uint32_t)pos;
 
     msg_send(STEPGEN_MSG_POS_SET, msg_buf, 2*4, 0);
-}
-
-/**
- * @brief   enable/disable `abort all` watchdog
- * @param   enable      0 = disable watchdog, other values - enable watchdog
- * @param   time        watchdog wait time (in nanoseconds)
- * @retval  none
- */
-void stepgen_watchdog_setup(uint8_t enable, uint32_t time)
-{
-    u32_10_t *tx = (u32_10_t*) msg_buf;
-
-    tx->v[0] = enable;
-    tx->v[1] = time;
-
-    msg_send(STEPGEN_MSG_WATCHDOG_SETUP, msg_buf, 2*4, 0);
 }
 
 
@@ -831,12 +793,10 @@ int32_t parse_and_exec(const char *str)
          gpio_port_clear            (port, mask) \n\
 \n\
          stepgen_pin_setup      (channel, type, port, pin, invert) \n\
-         stepgen_task_add       (channel, type, pulses, low_time, high_time) \n\
-         stepgen_task_update    (channel, type, low_time, high_time) \n\
-         stepgen_abort          (channel, all) \n\
+         stepgen_time_setup     (channel, type, t0, t1) \n\
+         stepgen_task_add       (channel, pulses) \n\
     int  stepgen_pos_get        (channel) \n\
          stepgen_pos_set        (channel, position) \n\
-         stepgen_watchdog_setup (enable, time) \n\
 \n\
          encoder_pin_setup      (channel, phase, port, pin) \n\
          encoder_setup          (channel, using_B, using_Z) \n\
@@ -851,16 +811,13 @@ int32_t parse_and_exec(const char *str)
     pin             GPIO pin (0..31)\n\
     mask            GPIO pins mask (0b0 .. 0b11111111111111111111111111111111)\n\
 \n\
-    channel         channel ID (0..24 for stepgen, 0-7 for encoder)\n\
+    channel         channel ID (0..16 for stepgen, 0-7 for encoder)\n\
     type            0 = STEP, 1 = DIR\n\
     invert          invert GPIO pin? (0..1)\n\
-    pulses          number of pin pulses (0..4294967295)\n\
-    low_time        pin state setup time in nanoseconds (0..4294967295)\n\
-    high_time       pin state hold time in nanoseconds (0..4294967295)\n\
-    time            watchdog wait time in nanoseconds (0..4294967295)\n\
-    all             0 = abort current task, !0 = abort all tasks\n\
+    pulses          number of pin pulses (-2147483648..2147483647)\n\
+    t0              pin state setup time in nanoseconds (0..4294967295)\n\
+    t1              pin state hold time in nanoseconds (0..4294967295)\n\
     position        position value in pulses (integer 4 bytes)\n\
-    enable          0 = disable watchdog, !0 = enable watchdog\n\
 \n\
     phase           encoder phase (0..2, PH_A, PH_B, PH_Z)\n\
     using_B         use phase B? (0..1)\n\
@@ -895,16 +852,20 @@ int32_t parse_and_exec(const char *str)
     # use PA15 pin for the channel 0 output \n\
     %s \"stepgen_pin_setup(0,0,PA,15,0)\" \n\
 \n\
-    # make 100 pulses with 1Hz period and 50%% duty cycle \n\
-    %s \"stepgen_task_add(0,0,100,500000000,500000000)\" \n\
+    # change step frequency to 100KHz (duty 10%)\n\
+    %s \"stepgen_time_setup(0,0,9000,1000)\" \n\
 \n\
-    # change task period to 100Hz \n\
-    %s \"stepgen_task_update(0,0,5000000,5000000)\" \n\
+    # change DIR period to 1ms (duty 50%)\n\
+    %s \"stepgen_time_setup(0,1,500000,500000)\" \n\
+\n\
+    # make 100 forward pulses \n\
+    %s \"stepgen_task_add(0,100)\" \n\
+\n\
+    # make 34 reverse pulses \n\
+    %s \"stepgen_task_add(0,-34)\" \n\
 \n\
     %s \"stepgen_pos_set(0,777)\"           # set channel 0 position to 777 \n\
     %s \"stepgen_pos_get(0)\"               # get channel 0 position \n\
-    %s \"stepgen_abort(0,1)\"               # stop channel 0 on LOW pin state\n\
-    %s \"stepgen_watchdog_setup(1,10000)\"  # start watchdog, wait time = 10us\n\
 \n\
   ENCODER examples:\n\
 \n\
@@ -921,8 +882,7 @@ int32_t parse_and_exec(const char *str)
 \n",
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
-            app_name, app_name, app_name, app_name, app_name, app_name, app_name,
-            app_name
+            app_name, app_name, app_name, app_name, app_name, app_name, app_name
         );
         return 0;
     }
@@ -1018,28 +978,19 @@ int32_t parse_and_exec(const char *str)
         return 0;
     }
 
-    if ( !reg_match(str, "stepgen_task_add *\\("UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 5) )
+    if ( !reg_match(str, "stepgen_task_add *\\("UINT","INT"\\)", &arg[0], 2) )
     {
 #if !TEST
-        stepgen_task_add(arg[0], arg[1], arg[2], arg[3], arg[4]);
+        stepgen_task_add(arg[0], arg[1]);
 #endif
         printf("OK\n");
         return 0;
     }
 
-    if ( !reg_match(str, "stepgen_task_update *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
+    if ( !reg_match(str, "stepgen_time_setup *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
     {
 #if !TEST
         stepgen_task_update(arg[0], arg[1], arg[2], arg[3]);
-#endif
-        printf("OK\n");
-        return 0;
-    }
-
-    if ( !reg_match(str, "stepgen_abort *\\("UINT","UINT"\\)", &arg[0], 2) )
-    {
-#if !TEST
-        stepgen_abort(arg[0], arg[1]);
 #endif
         printf("OK\n");
         return 0;
@@ -1059,15 +1010,6 @@ int32_t parse_and_exec(const char *str)
     {
 #if !TEST
         stepgen_pos_set(arg[0], (int32_t)arg[1]);
-#endif
-        printf("OK\n");
-        return 0;
-    }
-
-    if ( !reg_match(str, "stepgen_watchdog_setup *\\("UINT","UINT"\\)", &arg[0], 2) )
-    {
-#if !TEST
-        stepgen_watchdog_setup(arg[0], arg[1]);
 #endif
         printf("OK\n");
         return 0;
