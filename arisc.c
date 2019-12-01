@@ -849,23 +849,15 @@ int32_t parse_and_exec(const char *str)
 \n\
   STEPGEN examples:\n\
 \n\
-    # use PA15 pin for the channel 0 output \n\
-    %s \"stepgen_pin_setup(0,0,PA,15,0)\" \n\
-\n\
-    # change step frequency to 100KHz (duty 10%%) \n\
-    %s \"stepgen_time_setup(0,0,9000,1000)\" \n\
-\n\
-    # change DIR period to 1ms (duty 50%%) \n\
-    %s \"stepgen_time_setup(0,1,500000,500000)\" \n\
-\n\
-    # make 100 forward pulses \n\
-    %s \"stepgen_task_add(0,100)\" \n\
-\n\
-    # make 34 reverse pulses \n\
-    %s \"stepgen_task_add(0,-34)\" \n\
-\n\
-    %s \"stepgen_pos_set(0,777)\"           # set channel 0 position to 777 \n\
-    %s \"stepgen_pos_get(0)\"               # get channel 0 position \n\
+    %s \"stepgen_pin_setup(0,0,PA,12,0)\"       # use PA12 as STEP pin \n\
+    %s \"stepgen_pin_setup(0,1,PA,11,0)\"       # use PA11 as DIR pin \n\
+    %s \"stepgen_time_setup(0,0,9000,1000)\"    # STEP frequency = 100KHz \n\
+    %s \"stepgen_time_setup(0,1,50000,50000)\"  # DIR period = 100us \n\
+    %s \"stepgen_task_add(0,100)\"              # make 100 forward pulses \n\
+    %s \"stepgen_task_add(0,-34)\"              # make 34 reverse pulses \n\
+    %s \"stepgen_pos_get(0)\"                   # current position is 66 \n\
+    %s \"stepgen_pos_set(0,777)\"               # set position to 777 \n\
+    %s \"stepgen_pos_get(0)\"                   # current position is 777 \n\
 \n\
   ENCODER examples:\n\
 \n\
@@ -883,7 +875,7 @@ int32_t parse_and_exec(const char *str)
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
-            app_name
+            app_name, app_name, app_name
         );
         return 0;
     }
