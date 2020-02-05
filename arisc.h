@@ -14,6 +14,11 @@
 
 
 
+#define STEPGEN_DEBUG           1
+
+
+
+
 // public method prototypes
 
 void encoder_pin_setup(uint8_t c, uint8_t phase, uint8_t port, uint8_t pin);
@@ -28,6 +33,10 @@ void stepgen_task_add(uint8_t c, int32_t pulses);
 void stepgen_time_setup(uint8_t c, uint8_t type, uint32_t t0, uint32_t t1);
 int32_t stepgen_pos_get(uint8_t c);
 void stepgen_pos_set(uint8_t c, int32_t pos);
+#if STEPGEN_DEBUG
+    int32_t stepgen_param_get(uint8_t c, uint8_t p);
+    void stepgen_param_set(uint8_t c, uint8_t p, int32_t v);
+#endif
 
 void gpio_pin_setup_for_output(uint32_t port, uint32_t pin);
 void gpio_pin_setup_for_input(uint32_t port, uint32_t pin);
@@ -130,8 +139,48 @@ enum
     STEPGEN_MSG_TASK_ADD,
     STEPGEN_MSG_POS_GET,
     STEPGEN_MSG_POS_SET,
+#if STEPGEN_DEBUG
+    STEPGEN_MSG_PARAM_GET,
+    STEPGEN_MSG_PARAM_SET,
+#endif
     STEPGEN_MSG_CNT
 };
+
+#if STEPGEN_DEBUG
+    enum
+    {
+        SG_STEP_VAL = 0,
+        SG_STEP_PORT,
+        SG_STEP_MSK,
+        SG_STEP_MSKN,
+        SG_STEP_INV,
+        SG_STEP_T0,
+        SG_STEP_T1,
+
+        SG_DIR_VAL,
+        SG_DIR_PORT,
+        SG_DIR_MSK,
+        SG_DIR_MSKN,
+        SG_DIR_INV,
+        SG_DIR_T0,
+        SG_DIR_T1,
+
+        SG_POS,
+
+        SG_TASK_TYPE,
+        SG_TASK_SLOT,
+        SG_TASK_TICK,
+        SG_TASK_TIMEOUT,
+        SG_TASK0,
+        SG_TASK1,
+        SG_TASK2,
+        SG_TASK3,
+
+        SG_TICK,
+        SG_TICK_LAST,
+        SG_MAX_ID
+    };
+#endif
 
 
 

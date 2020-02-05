@@ -316,6 +316,39 @@ void stepgen_pos_set(uint8_t c, int32_t pos)
     msg_send(STEPGEN_MSG_POS_SET, msg_buf, 2*4, 0);
 }
 
+#if STEPGEN_DEBUG
+    int32_t stepgen_param_get(uint8_t c, uint8_t p)
+    {
+        u32_10_t *tx = (u32_10_t*) msg_buf;
+
+        tx->v[0] = c;
+        tx->v[1] = p;
+
+        msg_send(STEPGEN_MSG_PARAM_GET, msg_buf, 2*4, 0);
+
+        // finite loop, only 999999 tries to read an answer
+        uint32_t n = 0;
+        for ( n = 999999; n--; )
+        {
+            if ( msg_read(STEPGEN_MSG_PARAM_GET, msg_buf, 0) < 0 ) continue;
+            else return (int32_t)tx->v[0];
+        }
+
+        return 0;
+    }
+
+    void stepgen_param_set(uint8_t c, uint8_t p, int32_t v)
+    {
+        u32_10_t *tx = (u32_10_t*) msg_buf;
+
+        tx->v[0] = c;
+        tx->v[1] = p;
+        tx->v[2] = (uint32_t)v;
+
+        msg_send(STEPGEN_MSG_POS_SET, msg_buf, 3*4, 0);
+    }
+#endif
+
 
 
 
@@ -1003,6 +1036,25 @@ int32_t parse_and_exec(const char *str)
     {
 #if !TEST
         stepgen_pos_set(arg[0], (int32_t)arg[1]);
+#endif
+        printf("OK\n");
+        return 0;
+    }
+
+    if ( !reg_match(str, "stepgen_param_get *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+#if !TEST
+        printf("%d\n", stepgen_param_get(arg[0],arg[1]));
+#else
+        printf("%d\n", 1);
+#endif
+        return 0;
+    }
+
+    if ( !reg_match(str, "stepgen_param_set *\\("UINT","UINT","INT"\\)", &arg[0], 3) )
+    {
+#if !TEST
+        stepgen_param_set(arg[0], arg[1], (int32_t)arg[2]);
 #endif
         printf("OK\n");
         return 0;
