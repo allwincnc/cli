@@ -533,34 +533,42 @@ int8_t msg_read(uint8_t type, uint8_t * msg, uint8_t bswap)
     static uint8_t m = 0;
     static uint8_t i = 0;
     static uint32_t * link;
+    static int8_t msg_len;
 
     // find next unread message
     for ( i = MSG_MAX_CNT, m = last; i--; )
     {
         // process message only of current type
-        if ( msg_arisc[m]->unread && msg_arisc[m]->type == type )
+        if ( msg_arisc[m]->unread && !msg_arisc[m]->locked && msg_arisc[m]->type == type )
         {
+            // message slot is busy
+            msg_arisc[m]->locked = 1;
+
+            msg_len = msg_arisc[m]->length;
+
             if ( bswap )
             {
                 // swap message data bytes for correct reading by ARM
                 link = ((uint32_t*) &msg_arisc[m]->msg);
-                for ( i = msg_arisc[m]->length / 4 + 1; i--; link++ )
+                for ( i = msg_len / 4 + 1; i--; link++ )
                 {
                     *link = __bswap_32(*link);
                 }
             }
 
             // copy message to the buffer
-            memcpy(msg, &msg_arisc[m]->msg, msg_arisc[m]->length);
+            memcpy(msg, &msg_arisc[m]->msg, msg_len);
 
             // message read
             msg_arisc[m]->unread = 0;
+            // message slot is free
+            msg_arisc[m]->locked = 0;
+
             last = m;
-            return msg_arisc[m]->length;
+            return msg_len;
         }
 
-        ++m;
-        if ( m >= MSG_MAX_CNT ) m = 0;
+        m = (m + 1) & (MSG_MAX_CNT - 1);
     }
 
     return -1;
@@ -588,8 +596,11 @@ int8_t msg_send(uint8_t type, uint8_t * msg, uint8_t length, uint8_t bswap)
     for ( i = MSG_MAX_CNT, m = last; i--; )
     {
         // sending message
-        if ( !msg_arm[m]->unread )
+        if ( !msg_arm[m]->unread && !msg_arisc[m]->locked )
         {
+            // message slot is busy
+            msg_arisc[m]->locked = 1;
+
             // copy message to the buffer
             memset( (uint8_t*)((uint8_t*)&msg_arm[m]->msg + length/4*4), 0, 4);
             memcpy(&msg_arm[m]->msg, msg, length);
@@ -609,13 +620,15 @@ int8_t msg_send(uint8_t type, uint8_t * msg, uint8_t length, uint8_t bswap)
             msg_arm[m]->length = length;
             msg_arm[m]->unread = 1;
 
+            // message slot is free
+            msg_arisc[m]->locked = 0;
+
             // message sent
             last = m;
             return 0;
         }
 
-        ++m;
-        if ( m >= MSG_MAX_CNT ) m = 0;
+        m = (m + 1) & (MSG_MAX_CNT - 1);
     }
 
     // message not sent
