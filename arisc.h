@@ -46,6 +46,9 @@ void gpio_pin_clear(uint32_t port, uint32_t pin);
 uint32_t gpio_port_get(uint32_t port);
 void gpio_port_set(uint32_t port, uint32_t mask);
 void gpio_port_clear(uint32_t port, uint32_t mask);
+uint32_t* gpio_all_get();
+void gpio_all_set(uint32_t* mask);
+void gpio_all_clear(uint32_t* mask);
 
 int8_t msg_read(uint8_t type, uint8_t * msg, uint8_t bswap);
 int8_t msg_send(uint8_t type, uint8_t * msg, uint8_t length, uint8_t bswap);
@@ -118,7 +121,11 @@ enum
 
     GPIO_MSG_PORT_GET,
     GPIO_MSG_PORT_SET,
-    GPIO_MSG_PORT_CLEAR
+    GPIO_MSG_PORT_CLEAR,
+
+    GPIO_MSG_ALL_GET,
+    GPIO_MSG_ALL_SET,
+    GPIO_MSG_ALL_CLEAR
 };
 
 /// the message data access

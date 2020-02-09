@@ -514,6 +514,30 @@ void gpio_port_clear(uint32_t port, uint32_t mask)
     msg_send(GPIO_MSG_PORT_CLEAR, (uint8_t*)&tx, 2*4, 0);
 }
 
+uint32_t* gpio_all_get()
+{
+    static uint32_t n;
+
+    msg_send(GPIO_MSG_ALL_GET, (uint8_t*)&msg_buf[0], 0*4, 0);
+    for ( n = 99999; n--; )
+    {
+        if ( msg_read(GPIO_MSG_ALL_GET, (uint8_t*)&msg_buf[0], 0) < 0 ) continue;
+        else return (uint32_t*) &msg_buf;
+    }
+
+    return (uint32_t*) 0;
+}
+
+void gpio_all_set(uint32_t* mask)
+{
+    msg_send(GPIO_MSG_ALL_SET, (uint8_t*)mask, GPIO_PORTS_CNT*4, 0);
+}
+
+void gpio_all_clear(uint32_t* mask)
+{
+    msg_send(GPIO_MSG_ALL_CLEAR, (uint8_t*)mask, GPIO_PORTS_CNT*4, 0);
+}
+
 
 
 
@@ -1003,6 +1027,43 @@ int32_t parse_and_exec(const char *str)
         printf("%u, 0x%X, 0b", s, s);
         for ( ; b--; ) printf("%u", (s & (1U << b) ? 1 : 0));
         printf("\n");
+        return 0;
+    }
+
+    if ( !reg_match(str, "gpio_all_set *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
+    {
+#if !TEST
+        gpio_all_set(&arg[0]);
+#endif
+        printf("OK\n");
+        return 0;
+    }
+
+    if ( !reg_match(str, "gpio_all_clear *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
+    {
+#if !TEST
+        gpio_all_clear(&arg[0]);
+#endif
+        printf("OK\n");
+        return 0;
+    }
+
+    if ( !reg_match(str, "gpio_all_get *\\(\\)", &arg[0], 0) )
+    {
+#if !TEST
+        uint32_t* ports = gpio_all_get();
+#else
+        uint32_t test[GPIO_PORTS_CNT] = {0x12345678};
+        uint32_t* ports = &test[0];
+#endif
+        uint32_t b, port, s;
+        for ( port = 0; port < GPIO_PORTS_CNT; port++ )
+        {
+            s = *(ports+port);
+            printf("PORT %u state: 0b", port);
+            for ( b = 32; b--; ) printf("%u", (s & (1U << b) ? 1 : 0));
+            printf(" (%u, 0x%X)\n", s, s);
+        }
         return 0;
     }
 
