@@ -1114,7 +1114,7 @@ int32_t parse_and_exec(const char *str)
         printf("OK\n");
         return 0;
     }
-
+#if STEPGEN_DEBUG
     if ( !reg_match(str, "stepgen_param_get *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
 #if !TEST
@@ -1133,6 +1133,7 @@ int32_t parse_and_exec(const char *str)
         printf("OK\n");
         return 0;
     }
+#endif
 
     // --- ENCODER ------
 

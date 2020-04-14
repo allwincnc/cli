@@ -14,7 +14,7 @@
 
 
 
-#define STEPGEN_DEBUG           1
+#define STEPGEN_DEBUG           0
 
 
 
