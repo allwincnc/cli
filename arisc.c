@@ -239,63 +239,41 @@ void stepgen_pin_setup(uint8_t c, uint8_t type, uint8_t port, uint8_t pin, uint8
 /**
  * @brief   add a new task for the selected channel
  *
- * @param   c               channel id
- * @param   type            0:step, 1:dir
- * @param   pulses          number of pulses (ignored for DIR task)
- * @param   pin_low_time    pin LOW state duration (in nanoseconds)
- * @param   pin_high_time   pin HIGH state duration (in nanoseconds)
+ * @param   c           channel id
+ * @param   pulses      number of pulses
  *
  * @retval  none
  */
-void stepgen_task_add(uint8_t c, uint8_t type, uint32_t pulses, uint32_t pin_low_time, uint32_t pin_high_time)
+void stepgen_task_add(uint8_t c, int32_t pulses)
 {
     u32_10_t *tx = (u32_10_t*) msg_buf;
 
     tx->v[0] = c;
-    tx->v[1] = type;
-    tx->v[2] = pulses;
-    tx->v[3] = pin_low_time;
-    tx->v[4] = pin_high_time;
+    tx->v[1] = pulses;
 
-    msg_send(STEPGEN_MSG_TASK_ADD, msg_buf, 5*4, 0);
+    msg_send(STEPGEN_MSG_TASK_ADD, msg_buf, 2*4, 0);
 }
 
 /**
  * @brief   update time values for the current task
  *
- * @param   c               channel id
- * @param   type            0:step, 1:dir
- * @param   pin_low_time    pin LOW state duration (in nanoseconds)
- * @param   pin_high_time   pin HIGH state duration (in nanoseconds)
+ * @param   c       channel id
+ * @param   type    0:step, 1:dir
+ * @param   t0      pin LOW state duration (in nanoseconds)
+ * @param   t1      pin HIGH state duration (in nanoseconds)
  *
  * @retval  none
  */
-void stepgen_task_update(uint8_t c, uint8_t type, uint32_t pin_low_time, uint32_t pin_high_time)
+void stepgen_time_setup(uint8_t c, uint8_t type, uint32_t t0, uint32_t t1)
 {
     u32_10_t *tx = (u32_10_t*) msg_buf;
 
     tx->v[0] = c;
     tx->v[1] = type;
-    tx->v[2] = pin_low_time;
-    tx->v[3] = pin_high_time;
+    tx->v[2] = t0;
+    tx->v[3] = t1;
 
-    msg_send(STEPGEN_MSG_TASK_UPDATE, msg_buf, 4*4, 0);
-}
-
-/**
- * @brief   abort all tasks for the selected channel
- * @param   c       channel id
- * @param   all     abort all task?
- * @retval  none
- */
-void stepgen_abort(uint8_t c, uint8_t all)
-{
-    u32_10_t *tx = (u32_10_t*) msg_buf;
-
-    tx->v[0] = c;
-    tx->v[1] = all;
-
-    msg_send(STEPGEN_MSG_ABORT, msg_buf, 2*4, 0);
+    msg_send(STEPGEN_MSG_TIME_SETUP, msg_buf, 4*4, 0);
 }
 
 /**
@@ -338,21 +316,38 @@ void stepgen_pos_set(uint8_t c, int32_t pos)
     msg_send(STEPGEN_MSG_POS_SET, msg_buf, 2*4, 0);
 }
 
-/**
- * @brief   enable/disable `abort all` watchdog
- * @param   enable      0 = disable watchdog, other values - enable watchdog
- * @param   time        watchdog wait time (in nanoseconds)
- * @retval  none
- */
-void stepgen_watchdog_setup(uint8_t enable, uint32_t time)
-{
-    u32_10_t *tx = (u32_10_t*) msg_buf;
+#if STEPGEN_DEBUG
+    int32_t stepgen_param_get(uint8_t c, uint8_t p)
+    {
+        u32_10_t *tx = (u32_10_t*) msg_buf;
 
-    tx->v[0] = enable;
-    tx->v[1] = time;
+        tx->v[0] = c;
+        tx->v[1] = p;
 
-    msg_send(STEPGEN_MSG_WATCHDOG_SETUP, msg_buf, 2*4, 0);
-}
+        msg_send(STEPGEN_MSG_PARAM_GET, msg_buf, 2*4, 0);
+
+        // finite loop, only 999999 tries to read an answer
+        uint32_t n = 0;
+        for ( n = 999999; n--; )
+        {
+            if ( msg_read(STEPGEN_MSG_PARAM_GET, msg_buf, 0) < 0 ) continue;
+            else return (int32_t)tx->v[0];
+        }
+
+        return 0;
+    }
+
+    void stepgen_param_set(uint8_t c, uint8_t p, int32_t v)
+    {
+        u32_10_t *tx = (u32_10_t*) msg_buf;
+
+        tx->v[0] = c;
+        tx->v[1] = p;
+        tx->v[2] = (uint32_t)v;
+
+        msg_send(STEPGEN_MSG_POS_SET, msg_buf, 3*4, 0);
+    }
+#endif
 
 
 
@@ -519,6 +514,30 @@ void gpio_port_clear(uint32_t port, uint32_t mask)
     msg_send(GPIO_MSG_PORT_CLEAR, (uint8_t*)&tx, 2*4, 0);
 }
 
+uint32_t* gpio_all_get()
+{
+    static uint32_t n;
+
+    msg_send(GPIO_MSG_ALL_GET, (uint8_t*)&msg_buf[0], 0*4, 0);
+    for ( n = 99999; n--; )
+    {
+        if ( msg_read(GPIO_MSG_ALL_GET, (uint8_t*)&msg_buf[0], 0) < 0 ) continue;
+        else return (uint32_t*) &msg_buf;
+    }
+
+    return (uint32_t*) 0;
+}
+
+void gpio_all_set(uint32_t* mask)
+{
+    msg_send(GPIO_MSG_ALL_SET, (uint8_t*)mask, GPIO_PORTS_CNT*4, 0);
+}
+
+void gpio_all_clear(uint32_t* mask)
+{
+    msg_send(GPIO_MSG_ALL_CLEAR, (uint8_t*)mask, GPIO_PORTS_CNT*4, 0);
+}
+
 
 
 
@@ -538,34 +557,42 @@ int8_t msg_read(uint8_t type, uint8_t * msg, uint8_t bswap)
     static uint8_t m = 0;
     static uint8_t i = 0;
     static uint32_t * link;
+    static int8_t msg_len;
 
     // find next unread message
     for ( i = MSG_MAX_CNT, m = last; i--; )
     {
         // process message only of current type
-        if ( msg_arisc[m]->unread && msg_arisc[m]->type == type )
+        if ( msg_arisc[m]->unread && !msg_arisc[m]->locked && msg_arisc[m]->type == type )
         {
+            // message slot is busy
+            msg_arisc[m]->locked = 1;
+
+            msg_len = msg_arisc[m]->length;
+
             if ( bswap )
             {
                 // swap message data bytes for correct reading by ARM
                 link = ((uint32_t*) &msg_arisc[m]->msg);
-                for ( i = msg_arisc[m]->length / 4 + 1; i--; link++ )
+                for ( i = msg_len / 4 + 1; i--; link++ )
                 {
                     *link = __bswap_32(*link);
                 }
             }
 
             // copy message to the buffer
-            memcpy(msg, &msg_arisc[m]->msg, msg_arisc[m]->length);
+            memcpy(msg, &msg_arisc[m]->msg, msg_len);
 
             // message read
             msg_arisc[m]->unread = 0;
+            // message slot is free
+            msg_arisc[m]->locked = 0;
+
             last = m;
-            return msg_arisc[m]->length;
+            return msg_len;
         }
 
-        ++m;
-        if ( m >= MSG_MAX_CNT ) m = 0;
+        m = (m + 1) & (MSG_MAX_CNT - 1);
     }
 
     return -1;
@@ -593,8 +620,11 @@ int8_t msg_send(uint8_t type, uint8_t * msg, uint8_t length, uint8_t bswap)
     for ( i = MSG_MAX_CNT, m = last; i--; )
     {
         // sending message
-        if ( !msg_arm[m]->unread )
+        if ( !msg_arm[m]->unread && !msg_arisc[m]->locked )
         {
+            // message slot is busy
+            msg_arisc[m]->locked = 1;
+
             // copy message to the buffer
             memset( (uint8_t*)((uint8_t*)&msg_arm[m]->msg + length/4*4), 0, 4);
             memcpy(&msg_arm[m]->msg, msg, length);
@@ -614,13 +644,15 @@ int8_t msg_send(uint8_t type, uint8_t * msg, uint8_t length, uint8_t bswap)
             msg_arm[m]->length = length;
             msg_arm[m]->unread = 1;
 
+            // message slot is free
+            msg_arisc[m]->locked = 0;
+
             // message sent
             last = m;
             return 0;
         }
 
-        ++m;
-        if ( m >= MSG_MAX_CNT ) m = 0;
+        m = (m + 1) & (MSG_MAX_CNT - 1);
     }
 
     // message not sent
@@ -831,12 +863,10 @@ int32_t parse_and_exec(const char *str)
          gpio_port_clear            (port, mask) \n\
 \n\
          stepgen_pin_setup      (channel, type, port, pin, invert) \n\
-         stepgen_task_add       (channel, type, pulses, low_time, high_time) \n\
-         stepgen_task_update    (channel, type, low_time, high_time) \n\
-         stepgen_abort          (channel, all) \n\
+         stepgen_time_setup     (channel, type, t0, t1) \n\
+         stepgen_task_add       (channel, pulses) \n\
     int  stepgen_pos_get        (channel) \n\
          stepgen_pos_set        (channel, position) \n\
-         stepgen_watchdog_setup (enable, time) \n\
 \n\
          encoder_pin_setup      (channel, phase, port, pin) \n\
          encoder_setup          (channel, using_B, using_Z) \n\
@@ -851,16 +881,13 @@ int32_t parse_and_exec(const char *str)
     pin             GPIO pin (0..31)\n\
     mask            GPIO pins mask (0b0 .. 0b11111111111111111111111111111111)\n\
 \n\
-    channel         channel ID (0..24 for stepgen, 0-7 for encoder)\n\
+    channel         channel ID (0..16 for stepgen, 0-7 for encoder)\n\
     type            0 = STEP, 1 = DIR\n\
     invert          invert GPIO pin? (0..1)\n\
-    pulses          number of pin pulses (0..4294967295)\n\
-    low_time        pin state setup time in nanoseconds (0..4294967295)\n\
-    high_time       pin state hold time in nanoseconds (0..4294967295)\n\
-    time            watchdog wait time in nanoseconds (0..4294967295)\n\
-    all             0 = abort current task, !0 = abort all tasks\n\
+    pulses          number of pin pulses (-2147483648..2147483647)\n\
+    t0              pin state setup time in nanoseconds (0..4294967295)\n\
+    t1              pin state hold time in nanoseconds (0..4294967295)\n\
     position        position value in pulses (integer 4 bytes)\n\
-    enable          0 = disable watchdog, !0 = enable watchdog\n\
 \n\
     phase           encoder phase (0..2, PH_A, PH_B, PH_Z)\n\
     using_B         use phase B? (0..1)\n\
@@ -892,19 +919,15 @@ int32_t parse_and_exec(const char *str)
 \n\
   STEPGEN examples:\n\
 \n\
-    # use PA15 pin for the channel 0 output \n\
-    %s \"stepgen_pin_setup(0,0,PA,15,0)\" \n\
-\n\
-    # make 100 pulses with 1Hz period and 50%% duty cycle \n\
-    %s \"stepgen_task_add(0,0,100,500000000,500000000)\" \n\
-\n\
-    # change task period to 100Hz \n\
-    %s \"stepgen_task_update(0,0,5000000,5000000)\" \n\
-\n\
-    %s \"stepgen_pos_set(0,777)\"           # set channel 0 position to 777 \n\
-    %s \"stepgen_pos_get(0)\"               # get channel 0 position \n\
-    %s \"stepgen_abort(0,1)\"               # stop channel 0 on LOW pin state\n\
-    %s \"stepgen_watchdog_setup(1,10000)\"  # start watchdog, wait time = 10us\n\
+    %s \"stepgen_pin_setup(0,0,PA,12,0)\"       # use PA12 as STEP pin \n\
+    %s \"stepgen_pin_setup(0,1,PA,11,0)\"       # use PA11 as DIR pin \n\
+    %s \"stepgen_time_setup(0,0,9000,1000)\"    # STEP frequency = 100KHz \n\
+    %s \"stepgen_time_setup(0,1,50000,50000)\"  # DIR period = 100us \n\
+    %s \"stepgen_task_add(0,100)\"              # make 100 forward pulses \n\
+    %s \"stepgen_task_add(0,-34)\"              # make 34 reverse pulses \n\
+    %s \"stepgen_pos_get(0)\"                   # current position is 66 \n\
+    %s \"stepgen_pos_set(0,777)\"               # set position to 777 \n\
+    %s \"stepgen_pos_get(0)\"                   # current position is 777 \n\
 \n\
   ENCODER examples:\n\
 \n\
@@ -922,7 +945,7 @@ int32_t parse_and_exec(const char *str)
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
             app_name, app_name, app_name, app_name, app_name, app_name, app_name,
-            app_name
+            app_name, app_name, app_name
         );
         return 0;
     }
@@ -1007,6 +1030,43 @@ int32_t parse_and_exec(const char *str)
         return 0;
     }
 
+    if ( !reg_match(str, "gpio_all_set *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
+    {
+#if !TEST
+        gpio_all_set(&arg[0]);
+#endif
+        printf("OK\n");
+        return 0;
+    }
+
+    if ( !reg_match(str, "gpio_all_clear *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
+    {
+#if !TEST
+        gpio_all_clear(&arg[0]);
+#endif
+        printf("OK\n");
+        return 0;
+    }
+
+    if ( !reg_match(str, "gpio_all_get *\\(\\)", &arg[0], 0) )
+    {
+#if !TEST
+        uint32_t* ports = gpio_all_get();
+#else
+        uint32_t test[GPIO_PORTS_CNT] = {0x12345678};
+        uint32_t* ports = &test[0];
+#endif
+        uint32_t b, port, s;
+        for ( port = 0; port < GPIO_PORTS_CNT; port++ )
+        {
+            s = *(ports+port);
+            printf("PORT %u state: 0b", port);
+            for ( b = 32; b--; ) printf("%u", (s & (1U << b) ? 1 : 0));
+            printf(" (%u, 0x%X)\n", s, s);
+        }
+        return 0;
+    }
+
     // --- STEPGEN ------
 
     if ( !reg_match(str, "stepgen_pin_setup *\\("UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 5) )
@@ -1018,28 +1078,19 @@ int32_t parse_and_exec(const char *str)
         return 0;
     }
 
-    if ( !reg_match(str, "stepgen_task_add *\\("UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 5) )
+    if ( !reg_match(str, "stepgen_task_add *\\("UINT","INT"\\)", &arg[0], 2) )
     {
 #if !TEST
-        stepgen_task_add(arg[0], arg[1], arg[2], arg[3], arg[4]);
+        stepgen_task_add(arg[0], arg[1]);
 #endif
         printf("OK\n");
         return 0;
     }
 
-    if ( !reg_match(str, "stepgen_task_update *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
+    if ( !reg_match(str, "stepgen_time_setup *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
     {
 #if !TEST
-        stepgen_task_update(arg[0], arg[1], arg[2], arg[3]);
-#endif
-        printf("OK\n");
-        return 0;
-    }
-
-    if ( !reg_match(str, "stepgen_abort *\\("UINT","UINT"\\)", &arg[0], 2) )
-    {
-#if !TEST
-        stepgen_abort(arg[0], arg[1]);
+        stepgen_time_setup(arg[0], arg[1], arg[2], arg[3]);
 #endif
         printf("OK\n");
         return 0;
@@ -1064,10 +1115,20 @@ int32_t parse_and_exec(const char *str)
         return 0;
     }
 
-    if ( !reg_match(str, "stepgen_watchdog_setup *\\("UINT","UINT"\\)", &arg[0], 2) )
+    if ( !reg_match(str, "stepgen_param_get *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
 #if !TEST
-        stepgen_watchdog_setup(arg[0], arg[1]);
+        printf("%d\n", stepgen_param_get(arg[0],arg[1]));
+#else
+        printf("%d\n", 1);
+#endif
+        return 0;
+    }
+
+    if ( !reg_match(str, "stepgen_param_set *\\("UINT","UINT","INT"\\)", &arg[0], 3) )
+    {
+#if !TEST
+        stepgen_param_set(arg[0], arg[1], (int32_t)arg[2]);
 #endif
         printf("OK\n");
         return 0;
