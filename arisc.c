@@ -173,9 +173,9 @@ uint8_t encoder_state_get(uint8_t c)
 
     msg_send(ENCODER_MSG_STATE_GET, (uint8_t*)&tx, 1*4, 0);
 
-    // finite loop, only 999999 tries to read an answer
+    // finite loop, only 9999 tries to read an answer
     uint32_t n = 0;
-    for ( n = 999999; n--; )
+    for ( n = 9999; n--; )
     {
         if ( msg_read(ENCODER_MSG_STATE_GET, (uint8_t*)&rx, 0) < 0 ) continue;
         else return rx.state;
@@ -198,9 +198,9 @@ int32_t encoder_counts_get(uint8_t c)
 
     msg_send(ENCODER_MSG_COUNTS_GET, (uint8_t*)&tx, 1*4, 0);
 
-    // finite loop, only 999999 tries to read an answer
+    // finite loop, only 9999 tries to read an answer
     uint32_t n = 0;
-    for ( n = 999999; n--; )
+    for ( n = 9999; n--; )
     {
         if ( msg_read(ENCODER_MSG_COUNTS_GET, (uint8_t*)&rx, 0) < 0 ) continue;
         else return rx.counts;
@@ -289,9 +289,9 @@ int32_t stepgen_pos_get(uint8_t c)
 
     msg_send(STEPGEN_MSG_POS_GET, msg_buf, 1*4, 0);
 
-    // finite loop, only 999999 tries to read an answer
+    // finite loop, only 9999 tries to read an answer
     uint32_t n = 0;
-    for ( n = 999999; n--; )
+    for ( n = 9999; n--; )
     {
         if ( msg_read(STEPGEN_MSG_POS_GET, msg_buf, 0) < 0 ) continue;
         else return (int32_t)tx->v[0];
@@ -326,9 +326,9 @@ void stepgen_pos_set(uint8_t c, int32_t pos)
 
         msg_send(STEPGEN_MSG_PARAM_GET, msg_buf, 2*4, 0);
 
-        // finite loop, only 999999 tries to read an answer
+        // finite loop, only 9999 tries to read an answer
         uint32_t n = 0;
-        for ( n = 999999; n--; )
+        for ( n = 9999; n--; )
         {
             if ( msg_read(STEPGEN_MSG_PARAM_GET, msg_buf, 0) < 0 ) continue;
             else return (int32_t)tx->v[0];
@@ -401,9 +401,9 @@ uint32_t gpio_pin_get(uint32_t port, uint32_t pin)
 
     msg_send(GPIO_MSG_PIN_GET, (uint8_t*)&tx, 2*4, 0);
 
-    // finite loop, only 999999 tries to read an answer
+    // finite loop, only 9999 tries to read an answer
     uint32_t n = 0;
-    for ( n = 999999; n--; )
+    for ( n = 9999; n--; )
     {
         if ( msg_read(GPIO_MSG_PIN_GET, (uint8_t*)&rx, 0) < 0 ) continue;
         else return rx.state;
@@ -459,9 +459,9 @@ uint32_t gpio_port_get(uint32_t port)
 
     msg_send(GPIO_MSG_PORT_GET, (uint8_t*)&tx, 1*4, 0);
 
-    // finite loop, only 999999 tries to read an answer
+    // finite loop, only 9999 tries to read an answer
     uint32_t n = 0;
-    for ( n = 999999; n--; )
+    for ( n = 9999; n--; )
     {
         if ( msg_read(GPIO_MSG_PORT_GET, (uint8_t*)&rx, 0) < 0 ) continue;
         else return rx.state;
@@ -519,7 +519,7 @@ uint32_t* gpio_all_get()
     static uint32_t n;
 
     msg_send(GPIO_MSG_ALL_GET, (uint8_t*)&msg_buf[0], 0*4, 0);
-    for ( n = 99999; n--; )
+    for ( n = 9999; n--; )
     {
         if ( msg_read(GPIO_MSG_ALL_GET, (uint8_t*)&msg_buf[0], 0) < 0 ) continue;
         else return (uint32_t*) &msg_buf;
