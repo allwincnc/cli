@@ -169,10 +169,10 @@ void mem_init(void)
     if (shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
     for ( port = 0; port < GPIO_PORTS_CNT; port++ )
     {
-        gpio_shm_set[port] = (uint32_t *) ( shm_vrt_addr + (off + port + (GPIO_SHM_SET_BASE - GPIO_SHM_BASE))/4 );
-        gpio_shm_clr[port] = (uint32_t *) ( shm_vrt_addr + (off + port + (GPIO_SHM_CLR_BASE - GPIO_SHM_BASE))/4 );
-        gpio_shm_out[port] = (uint32_t *) ( shm_vrt_addr + (off + port + (GPIO_SHM_OUT_BASE - GPIO_SHM_BASE))/4 );
-        gpio_shm_inp[port] = (uint32_t *) ( shm_vrt_addr + (off + port + (GPIO_SHM_INP_BASE - GPIO_SHM_BASE))/4 );
+        gpio_shm_set[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_SET_BASE - GPIO_SHM_BASE))/4 );
+        gpio_shm_clr[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_CLR_BASE - GPIO_SHM_BASE))/4 );
+        gpio_shm_out[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_OUT_BASE - GPIO_SHM_BASE))/4 );
+        gpio_shm_inp[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_INP_BASE - GPIO_SHM_BASE))/4 );
     }
 
     addr = GPIO_BASE & ~(4096 - 1);
