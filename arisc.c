@@ -26,7 +26,7 @@
 
 static uint32_t *shm_vrt_addr, *gpio_vrt_addr, *r_gpio_vrt_addr;
 static char *app_name = 0;
-volatile uint32_t * gpio_port_data[GPIO_PORTS_CNT] = {0};
+volatile uint32_t * gpio[GPIO_PORTS_CNT] = {0};
 volatile uint32_t * gpio_shm_set[GPIO_PORTS_CNT] = {0};
 volatile uint32_t * gpio_shm_clr[GPIO_PORTS_CNT] = {0};
 volatile uint32_t * gpio_shm_out[GPIO_PORTS_CNT] = {0};
@@ -74,7 +74,7 @@ uint32_t gpio_pin_get(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return 0;
     if ( pin >= GPIO_PINS_CNT ) return 0;
-    return *gpio_port_data[port] & (1UL << pin) ? HIGH : LOW;
+    return *gpio[port] & (1UL << pin) ? HIGH : LOW;
 }
 
 /**
@@ -112,7 +112,7 @@ void gpio_pin_clear(uint32_t port, uint32_t pin)
 uint32_t gpio_port_get(uint32_t port)
 {
     if ( port >= GPIO_PORTS_CNT ) return 0;
-    return *gpio_port_data[port];
+    return *gpio[port];
 }
 
 /**
@@ -165,7 +165,7 @@ void mem_init(void)
 
     addr = ARISC_SHM_BASE & ~(4096 - 1);
     off = ARISC_SHM_BASE & (4096 - 1);
-    shm_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
+    shm_vrt_addr = mmap(NULL, ARISC_SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
     for ( port = 0; port < GPIO_PORTS_CNT; port++ )
     {
@@ -181,14 +181,14 @@ void mem_init(void)
     if (gpio_vrt_addr == MAP_FAILED) { printf("ERROR: gpio mmap() failed\n"); return; }
     for ( port = 0; port < (GPIO_PORTS_CNT - 1); port++ )
     {
-        gpio_port_data[port] = (uint32_t *) ( gpio_vrt_addr + (off + port*GPIO_BANK_SIZE + 16)/4 );
+        gpio[port] = (uint32_t *) ( gpio_vrt_addr + (off + port*GPIO_BANK_SIZE + 16)/4 );
     }
 
     addr = GPIO_R_BASE & ~(4096 - 1);
     off = GPIO_R_BASE & (4096 - 1);
     r_gpio_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (r_gpio_vrt_addr == MAP_FAILED) { printf("ERROR: r_gpio mmap() failed\n"); return; }
-    gpio_port_data[GPIO_PORTS_CNT - 1] = (uint32_t *) ( r_gpio_vrt_addr + (off+16)/4 );
+    gpio[GPIO_PORTS_CNT - 1] = (uint32_t *) ( r_gpio_vrt_addr + (off+16)/4 );
 
     // no need to keep phy memory file open after mmap
     close(mem_fd);
@@ -196,7 +196,7 @@ void mem_init(void)
 
 void mem_deinit(void)
 {
-    munmap(shm_vrt_addr, 4096);
+    munmap(shm_vrt_addr, ARISC_SHM_SIZE);
     munmap(gpio_vrt_addr, 4096);
     munmap(r_gpio_vrt_addr, 4096);
 }
