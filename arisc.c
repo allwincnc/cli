@@ -163,8 +163,8 @@ void mem_init(void)
     mem_fd = open("/dev/mem", O_RDWR|O_SYNC);
     if ( mem_fd  < 0 ) { printf("ERROR: can't open /dev/mem file\n"); return; }
 
-    addr = GPIO_SHM_BASE & ~(4096 - 1);
-    off = GPIO_SHM_BASE & (4096 - 1);
+    addr = ARISC_SHM_BASE & ~(4096 - 1);
+    off = ARISC_SHM_BASE & (4096 - 1);
     shm_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
     for ( port = 0; port < GPIO_PORTS_CNT; port++ )
