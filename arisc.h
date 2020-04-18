@@ -27,11 +27,11 @@
 #define GPIO_PINS_CNT           24  // number of GPIO port pins
 
 #define GPIO_SHM_BASE           (ARISC_SHM_BASE)
-#define GPIO_SHM_SET_BASE       (GPIO_SHM_BASE     + GPIO_PORTS_CNT*4)
+#define GPIO_SHM_SET_BASE       (GPIO_SHM_BASE     + 0)
 #define GPIO_SHM_CLR_BASE       (GPIO_SHM_SET_BASE + GPIO_PORTS_CNT*4)
 #define GPIO_SHM_OUT_BASE       (GPIO_SHM_CLR_BASE + GPIO_PORTS_CNT*4)
 #define GPIO_SHM_INP_BASE       (GPIO_SHM_OUT_BASE + GPIO_PORTS_CNT*4)
-#define GPIO_SHM_SIZE           (GPIO_SHM_INP_BASE + GPIO_PORTS_CNT*4)
+#define GPIO_SHM_SIZE           (GPIO_SHM_INP_BASE + GPIO_PORTS_CNT*4 - GPIO_SHM_BASE)
 
 // GPIO port names
 enum { PA, PB, PC, PD, PE, PF, PG, PL };
