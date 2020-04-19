@@ -119,7 +119,7 @@ void gpio_data_set(uint32_t name, uint32_t value)
 {
     if ( name >= GPIO_DATA_CNT ) return;
     if ( name == GPIO_ARISC_LOCK ) return;
-    if ( name == GPIO_PORT_MAX_ID && (value >= (GPIO_PORTS_CNT-1)) ) return;
+    if ( name == GPIO_PORT_MAX_ID && (value >= GPIO_PORTS_CNT) ) return;
     gpio_spin_lock();
     if ( name == GPIO_PORT_MAX_ID || name == GPIO_USED )
     {
