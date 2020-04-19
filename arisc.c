@@ -118,15 +118,14 @@ void gpio_data_set(uint32_t name, uint32_t value)
     uint32_t port;
     if ( name == GPIO_PORT_MAX_ID || name == GPIO_USED )
     {
-        port = (name == GPIO_USED) ? GPIO_PORTS_CNT : value + 1;
-        value = (value >= GPIO_PORTS_CNT) ? GPIO_PORTS_CNT : value;
-        for ( ; port--; )
+        for ( port = GPIO_PORTS_CNT; port--; )
         {
             *gpio_shm_set[port] = 0;
             *gpio_shm_clr[port] = 0;
             *gpio_shm_out[port] = 0;
             *gpio_shm_inp[port] = 0;
         }
+        value = (value >= (GPIO_PORTS_CNT-1)) ? GPIO_PORTS_CNT-1 : value;
     }
     *gpiod[name] = value;
     gpio_spin_unlock();
