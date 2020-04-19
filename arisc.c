@@ -14,12 +14,16 @@
 
 static uint32_t *shm_vrt_addr, *gpio_vrt_addr, *r_gpio_vrt_addr;
 static char *app_name = 0;
+
 volatile uint32_t * gpio[GPIO_PORTS_CNT] = {0};
 volatile uint32_t * gpio_shm_set[GPIO_PORTS_CNT] = {0};
 volatile uint32_t * gpio_shm_clr[GPIO_PORTS_CNT] = {0};
 volatile uint32_t * gpio_shm_out[GPIO_PORTS_CNT] = {0};
 volatile uint32_t * gpio_shm_inp[GPIO_PORTS_CNT] = {0};
 volatile uint32_t * gpiod[GPIO_PORTS_CNT] = {0};
+
+volatile uint32_t * pgc[PG_CH_MAX_CNT][PG_PARAM_CNT] = {0};
+volatile uint32_t * pgd[PG_DATA_CNT] = {0};
 
 
 
@@ -114,10 +118,12 @@ static inline
 void gpio_data_set(uint32_t name, uint32_t value)
 {
     if ( name >= GPIO_DATA_CNT ) return;
+    if ( name == GPIO_ARISC_LOCK ) return;
+    if ( name == GPIO_PORT_MAX_ID && (value >= (GPIO_PORTS_CNT-1)) ) return;
     gpio_spin_lock();
-    uint32_t port;
     if ( name == GPIO_PORT_MAX_ID || name == GPIO_USED )
     {
+        uint32_t port;
         for ( port = GPIO_PORTS_CNT; port--; )
         {
             *gpio_shm_set[port] = 0;
@@ -125,7 +131,6 @@ void gpio_data_set(uint32_t name, uint32_t value)
             *gpio_shm_out[port] = 0;
             *gpio_shm_inp[port] = 0;
         }
-        value = (value >= (GPIO_PORTS_CNT-1)) ? GPIO_PORTS_CNT-1 : value;
     }
     *gpiod[name] = value;
     gpio_spin_unlock();
@@ -144,10 +149,69 @@ uint32_t gpio_data_get(uint32_t name)
 
 
 
+static inline
+void pg_spin_lock()
+{
+    while ( *pgd[GPIO_ARISC_LOCK] );
+    *pgd[GPIO_ARM_LOCK] = 1;
+}
+
+static inline
+void pg_spin_unlock()
+{
+    *pgd[GPIO_ARM_LOCK] = 0;
+}
+
+static inline
+void pg_data_set(uint32_t name, uint32_t value)
+{
+    if ( name >= PG_DATA_CNT ) return;
+    if ( name == PG_ARISC_LOCK ) return;
+    if ( name == PG_TIMER_FREQ ) return;
+    if ( name == PG_CH_CNT && value >= PG_CH_MAX_CNT ) return;
+    pg_spin_lock();
+    *pgd[name] = value;
+    pg_spin_unlock();
+}
+
+static inline
+uint32_t pg_data_get(uint32_t name)
+{
+    if ( name >= PG_DATA_CNT ) return 0;
+    pg_spin_lock();
+    uint32_t value = *pgd[name];
+    pg_spin_unlock();
+    return value;
+}
+
+static inline
+void pg_ch_data_set(uint32_t c, uint32_t name, uint32_t value)
+{
+    if ( c >= PG_CH_MAX_CNT ) return;
+    if ( name >= PG_PARAM_CNT ) return;
+    pg_spin_lock();
+    *pgc[c][name] = value;
+    pg_spin_unlock();
+}
+
+static inline
+uint32_t pg_ch_data_get(uint32_t c, uint32_t name)
+{
+    if ( c >= PG_CH_MAX_CNT ) return 0;
+    if ( name >= PG_PARAM_CNT ) return 0;
+    pg_spin_lock();
+    uint32_t value = *pgc[c][name];
+    pg_spin_unlock();
+    return value;
+}
+
+
+
+
 void mem_init(void)
 {
-    int32_t mem_fd, port;
-    uint32_t addr, off;
+    int32_t mem_fd;
+    uint32_t addr, off, port, ch, name, *p;
 
     // open physical memory file
     mem_fd = open("/dev/mem", O_RDWR|O_SYNC);
@@ -160,15 +224,17 @@ void mem_init(void)
     if (shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
     for ( port = 0; port < GPIO_PORTS_CNT; port++ )
     {
-        gpio_shm_set[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_SET_BASE - GPIO_SHM_BASE))/4 );
-        gpio_shm_clr[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_CLR_BASE - GPIO_SHM_BASE))/4 );
-        gpio_shm_out[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_OUT_BASE - GPIO_SHM_BASE))/4 );
-        gpio_shm_inp[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_INP_BASE - GPIO_SHM_BASE))/4 );
+        gpio_shm_set[port] = shm_vrt_addr + (off + port*4 + (GPIO_SHM_SET_BASE - GPIO_SHM_BASE))/4;
+        gpio_shm_clr[port] = shm_vrt_addr + (off + port*4 + (GPIO_SHM_CLR_BASE - GPIO_SHM_BASE))/4;
+        gpio_shm_out[port] = shm_vrt_addr + (off + port*4 + (GPIO_SHM_OUT_BASE - GPIO_SHM_BASE))/4;
+        gpio_shm_inp[port] = shm_vrt_addr + (off + port*4 + (GPIO_SHM_INP_BASE - GPIO_SHM_BASE))/4;
     }
-    for ( port = 0; port < GPIO_DATA_CNT; port++ )
-    {
-        gpiod[port] = (uint32_t *) ( shm_vrt_addr + (off + port*4 + (GPIO_SHM_DATA_BASE - GPIO_SHM_BASE))/4 );
-    }
+    p = shm_vrt_addr + (off + (GPIO_SHM_DATA_BASE - GPIO_SHM_BASE))/4;
+    for ( name = 0; name < GPIO_DATA_CNT; name++, p++ ) gpiod[name] = p;
+    p = shm_vrt_addr + (off + GPIO_SHM_SIZE)/4;
+    for ( ch = 0; ch < PG_CH_MAX_CNT; ch++ )
+        for ( name = 0; name < PG_PARAM_CNT; name++, p++ ) pgc[ch][name] = p;
+    for ( name = 0; name < PG_DATA_CNT; name++, p++ ) pgd[name] = p;
 
     // mmap gpio
     addr = GPIO_BASE & ~(4096 - 1);
@@ -324,20 +390,26 @@ int32_t parse_and_exec(const char *str)
     u32  gpio_data_get              (name) \n\
          gpio_data_set              (name, value) \n\
 \n\
+    u32  pg_data_get        (name) \n\
+         pg_data_set        (name, value) \n\
+    u32  pg_ch_data_get     (channel, name) \n\
+         pg_ch_data_set     (channel, name, value) \n\
+\n\
   Legend: \n\
 \n\
     port    GPIO port (0..%u | PA/PB/PC/PD/PE/PF/PG/PL)\n\
     pin     GPIO pin (0..%u)\n\
     mask    GPIO pins mask (u32)\n\
-    name    GPIO data name (0..%u)\n\
-    value   GPIO data value (u32)\n\
+    name    data name (u32)\n\
+    value   data value (u32)\n\
+    channel pulsgen channel id (0..%u)\n\
 \n\
   NOTE:\n\
     If you are using stdin/stdout mode, omit `%s` and any \" brackets\n\
 \n",
             app_name, app_name, app_name,
-            (GPIO_PORTS_CNT - 1), (GPIO_PINS_CNT - 1), (GPIO_DATA_CNT - 1),
-            app_name
+            (GPIO_PORTS_CNT - 1), (GPIO_PINS_CNT - 1),
+            (PG_CH_MAX_CNT - 1), app_name
         );
         return 0;
     }
@@ -411,6 +483,34 @@ int32_t parse_and_exec(const char *str)
     if ( !reg_match(str, "gpio_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
         gpio_data_set(arg[0], arg[1]);
+        printf("OK\n");
+        return 0;
+    }
+
+    // --- PULSGEN ------
+
+    if ( !reg_match(str, "pg_data_get *\\("UINT"\\)", &arg[0], 1) )
+    {
+        printf("%u\n", pg_data_get(arg[0]));
+        return 0;
+    }
+
+    if ( !reg_match(str, "pg_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+        pg_data_set(arg[0], arg[1]);
+        printf("OK\n");
+        return 0;
+    }
+
+    if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+        printf("%u\n", pg_ch_data_get(arg[0], arg[2]));
+        return 0;
+    }
+
+    if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
+    {
+        pg_ch_data_set(arg[0], arg[1], arg[2]);
         printf("OK\n");
         return 0;
     }

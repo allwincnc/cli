@@ -11,6 +11,9 @@
 #define ARISC_SHM_SIZE          (4096)
 #define ARISC_SHM_BASE          (ARISC_FW_BASE + ARISC_FW_SIZE - ARISC_SHM_SIZE)
 
+
+
+
 #define GPIO_BASE               0x01c20800
 #define GPIO_R_BASE             0x01f02c00
 #define GPIO_BANK_SIZE          0x24
@@ -37,6 +40,40 @@ enum
 
 enum { PA, PB, PC, PD, PE, PF, PG, PL };
 enum { LOW, HIGH };
+
+
+
+
+#define PG_CH_MAX_CNT 16
+
+enum
+{
+    PG_PORT,
+    PG_PIN_MSK,
+    PG_PIN_MSKN,
+    PG_TASK_TOGGLES,
+    PG_TASK_T0,
+    PG_TASK_T1,
+    PG_TASK_TICK,
+    PG_TASK_TIMEOUT,
+    PG_PARAM_CNT
+};
+
+enum
+{
+    PG_USED,
+    PG_ARM_LOCK,
+    PG_ARISC_LOCK,
+    PG_TIMER_FREQ,
+    PG_TIMER_TICK,
+    PG_CH_CNT,
+    PG_DATA_CNT
+};
+
+#define PG_SHM_BASE         (ARISC_SHM_BASE + GPIO_SHM_SIZE)
+#define PG_SHM_CH_BASE      (PG_SHM_BASE)
+#define PG_SHM_DATA_BASE    (PG_SHM_CH_BASE + PG_CH_MAX_CNT*PG_PARAM_CNT*4)
+#define PG_SHM_SIZE         (PG_SHM_DATA_BASE + PG_DATA_CNT*4)
 
 
 
