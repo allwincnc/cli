@@ -76,7 +76,7 @@ void gpio_pin_set(uint32_t port, uint32_t pin)
 }
 
 static inline
-void gpio_pin_clear(uint32_t port, uint32_t pin)
+void gpio_pin_clr(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return;
     if ( pin >= GPIO_PINS_CNT ) return;
@@ -102,7 +102,7 @@ void gpio_port_set(uint32_t port, uint32_t mask)
 }
 
 static inline
-void gpio_port_clear(uint32_t port, uint32_t mask)
+void gpio_port_clr(uint32_t port, uint32_t mask)
 {
     if ( port >= GPIO_PORTS_CNT ) return;
     gpio_spin_lock();
@@ -305,10 +305,10 @@ int32_t parse_and_exec(const char *str)
          gpio_pin_setup_for_input   (port, pin) \n\
     u32  gpio_pin_get               (port, pin) \n\
          gpio_pin_set               (port, pin) \n\
-         gpio_pin_clear             (port, pin) \n\
+         gpio_pin_clr               (port, pin) \n\
     u32  gpio_port_get              (port) \n\
          gpio_port_set              (port, mask) \n\
-         gpio_port_clear            (port, mask) \n\
+         gpio_port_clr              (port, mask) \n\
     u32  gpio_data_get              (name) \n\
          gpio_data_set              (name, value) \n\
 \n\
@@ -353,9 +353,9 @@ int32_t parse_and_exec(const char *str)
         return 0;
     }
 
-    if ( !reg_match(str, "gpio_pin_clear *\\("UINT","UINT"\\)", &arg[0], 2) )
+    if ( !reg_match(str, "gpio_pin_clr *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        gpio_pin_clear(arg[0], arg[1]);
+        gpio_pin_clr(arg[0], arg[1]);
         printf("OK\n");
         return 0;
     }
@@ -373,9 +373,9 @@ int32_t parse_and_exec(const char *str)
         return 0;
     }
 
-    if ( !reg_match(str, "gpio_port_clear *\\("UINT","UINT"\\)", &arg[0], 2) )
+    if ( !reg_match(str, "gpio_port_clr *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        gpio_port_clear(arg[0], arg[1]);
+        gpio_port_clr(arg[0], arg[1]);
         printf("OK\n");
         return 0;
     }
