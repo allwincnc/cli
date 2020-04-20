@@ -41,6 +41,15 @@ enum
 enum { PA, PB, PC, PD, PE, PF, PG, PL };
 enum { LOW, HIGH };
 
+#define GPIO_PIN_SET(PORT,PIN_MASK) \
+    *gpio[PORT] |= PIN_MASK
+
+#define GPIO_PIN_CLR(PORT,PIN_MASK_NOT) \
+    *gpio[PORT] &= PIN_MASK_NOT
+
+#define GPIO_PIN_GET(PORT,PIN_MASK) \
+    (*gpio[PORT] & PIN_MASK)
+
 
 
 
@@ -79,16 +88,16 @@ enum
 
 
 typedef struct {
-    uint32_t busy;
-    uint32_t pg_ch;
     int32_t  pos;
-
+    uint32_t pg_ch[2];
     uint32_t port[2];
     uint32_t pin[2];
     uint32_t inv[2];
     uint32_t t0[2];
     uint32_t t1[2];
 } _stepgen_ch_t;
+
+enum { STEP, DIR };
 
 
 

@@ -27,7 +27,7 @@ volatile uint32_t * pgd[PG_DATA_CNT] = {0};
 
 #define STEPGEN_CH_MAX_CNT 8
 
-#define d {0,0,0, {UINT32_MAX,UINT32_MAX},{UINT32_MAX,UINT32_MAX},{0,0},{0,0},{0,0}}
+#define d {0,{UINT32_MAX,UINT32_MAX},{UINT32_MAX,UINT32_MAX},{UINT32_MAX,UINT32_MAX},{0,0},{0,0},{0,0}}
 _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {d,d,d,d,d,d,d,d};
 #undef d
 
@@ -48,10 +48,23 @@ void gpio_spin_unlock()
 }
 
 static inline
+void gpio_port_setup(uint32_t port)
+{
+    if ( !*gpiod[GPIO_USED] || port > *gpiod[GPIO_PORT_MAX_ID] )
+    {
+        gpio_spin_lock();
+        *gpiod[GPIO_USED] = 1;
+        *gpiod[GPIO_PORT_MAX_ID] = port;
+        gpio_spin_unlock();
+    }
+}
+
+static inline
 int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
     if ( pin >= GPIO_PINS_CNT ) return -2;
+    gpio_port_setup(port);
     gpio_spin_lock();
     *gpio_shm_out[port] |= (1UL << pin);
     gpio_spin_unlock();
@@ -63,6 +76,7 @@ int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
     if ( pin >= GPIO_PINS_CNT ) return -2;
+    gpio_port_setup(port);
     gpio_spin_lock();
     *gpio_shm_inp[port] |= (1UL << pin);
     gpio_spin_unlock();
@@ -82,6 +96,7 @@ int32_t gpio_pin_set(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
     if ( pin >= GPIO_PINS_CNT ) return -2;
+    gpio_port_setup(port);
     gpio_spin_lock();
     *gpio_shm_set[port] |= (1UL << pin);
     gpio_spin_unlock();
@@ -93,6 +108,7 @@ int32_t gpio_pin_clr(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
     if ( pin >= GPIO_PINS_CNT ) return -2;
+    gpio_port_setup(port);
     gpio_spin_lock();
     *gpio_shm_clr[port] |= (1UL << pin);
     gpio_spin_unlock();
@@ -110,6 +126,7 @@ static inline
 int32_t gpio_port_set(uint32_t port, uint32_t mask)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
+    gpio_port_setup(port);
     gpio_spin_lock();
     *gpio_shm_set[port] = mask;
     gpio_spin_unlock();
@@ -120,6 +137,7 @@ static inline
 int32_t gpio_port_clr(uint32_t port, uint32_t mask)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
+    gpio_port_setup(port);
     gpio_spin_lock();
     *gpio_shm_clr[port] = mask;
     gpio_spin_unlock();
@@ -221,27 +239,58 @@ uint32_t pg_ch_data_get(uint32_t c, uint32_t name)
 }
 
 static inline
+void stepgen_ch_setup(uint32_t c)
+{
+    if ( _sgc[c].pg_ch[1] < PG_CH_MAX_CNT ) return;
+
+    _sgc[c].pg_ch[STEP] = 2*c;
+    _sgc[c].pg_ch[DIR] = 2*c + 1;
+
+    uint32_t pg_ch_cnt = 1 + _sgc[c].pg_ch[DIR];
+
+    if ( !*pgd[PG_USED] || pg_ch_cnt > *pgd[PG_CH_CNT] )
+    {
+        pg_spin_lock();
+        *pgd[PG_USED] = 1;
+        *pgd[PG_CH_CNT] = pg_ch_cnt;
+        pg_spin_unlock();
+    }
+}
+
+static inline
 int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin, uint32_t invert)
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
     if ( type >= 2 ) return -2;
     if ( port >= GPIO_PORTS_CNT ) return -3;
     if ( pin >= GPIO_PINS_CNT ) return -4;
+    stepgen_ch_setup(c);
 
-    _sgc[c].inv[type] = invert;
+    _sgc[c].inv[type] = invert ? HIGH : LOW;
 
     if ( port != _sgc[c].port[type] || pin != _sgc[c].pin[type] )
     {
         _sgc[c].port[type] = port;
         _sgc[c].pin[type] = pin;
 
-        if ( !type ) // if STEP
+        uint32_t t, msk, mskn;
+        msk = (1UL << pin);
+        mskn = ~msk;
+        c = _sgc[c].pg_ch[type];
+
+        pg_spin_lock();
+        *pgc[c][PG_PORT] = port;
+        *pgc[c][PG_PIN_MSK] = msk;
+        *pgc[c][PG_PIN_MSKN] = mskn;
+        t = *pgc[c][PG_TASK_TOGGLES];
+        pg_spin_unlock();
+
+        if ( !t )
         {
-            pg_spin_lock();
-            *pgc[c][PG_PORT] = port;
-            *pgc[c][PG_PIN_MSK] = (1UL << pin);
-            *pgc[c][PG_PIN_MSKN] = ~(1UL << pin);
-            pg_spin_unlock();
+            gpio_pin_setup_for_output(port, pin);
+
+            if ( invert ) gpio_pin_set(port, pin);
+            else gpio_pin_clr(port, pin);
         }
     }
 
@@ -253,8 +302,22 @@ int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1)
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
     if ( type >= 2 ) return -2;
+    stepgen_ch_setup(c);
 
-    // todo
+    if ( t0 != _sgc[c].t0[type] || t1 != _sgc[c].t1[type] )
+    {
+        _sgc[c].t0[type] = t0;
+        _sgc[c].t1[type] = t1;
+
+        t0 = (uint32_t)((uint64_t)t0 * (uint64_t)pgd[PG_TIMER_FREQ] / (uint64_t)1000000);
+        t1 = (uint32_t)((uint64_t)t1 * (uint64_t)pgd[PG_TIMER_FREQ] / (uint64_t)1000000);
+        c = _sgc[c].pg_ch[type];
+
+        pg_spin_lock();
+        *pgc[c][PG_TASK_T0] = t0;
+        *pgc[c][PG_TASK_T1] = t1;
+        pg_spin_unlock();
+    }
 
     return 0;
 }
@@ -263,8 +326,47 @@ static inline
 int32_t stepgen_task_add(uint8_t c, int32_t pulses)
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
+    if ( !pulses ) return -2;
+    stepgen_ch_setup(c);
 
-    // todo
+    int32_t dir = _sgc[c].inv[DIR] ^ gpio_pin_get(_sgc[c].port[DIR], _sgc[c].pin[DIR]);
+    uint32_t step_inv_msk = _sgc[c].inv[STEP] << _sgc[c].pin[STEP];
+    uint32_t step_delay = 0;
+    uint32_t t_old;
+    uint32_t t_new = 2 * (uint32_t)(pulses > 0 ? pulses : -pulses);
+    uint32_t s = _sgc[c].pg_ch[STEP];
+    uint32_t d = _sgc[c].pg_ch[DIR];
+
+    if ( (dir && pulses > 0) || (!dir && pulses < 0) )
+        step_delay = _sgc[c].t0[DIR] + _sgc[c].t1[DIR];
+
+    pg_spin_lock();
+    if ( step_delay )
+    {
+        *pgc[d][PG_TASK_TICK] = *pgc[c][PG_TIMER_TICK];
+        *pgc[d][PG_TASK_TIMEOUT] = 0;
+        *pgc[d][PG_TASK_TOGGLES] = 1;
+    }
+    t_old = *pgc[s][PG_TASK_TOGGLES];
+    if ( t_old % 2 )
+    {
+        if ( step_inv_msk ^ GPIO_PIN_GET(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]) )
+            GPIO_PIN_CLR(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]);
+        else
+            GPIO_PIN_SET(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]);
+    }
+    *pgc[s][PG_TASK_TICK] = *pgc[c][PG_TIMER_TICK];
+    *pgc[s][PG_TASK_TIMEOUT] = step_delay;
+    *pgc[s][PG_TASK_TOGGLES] = t_new;
+    pg_spin_unlock();
+
+    _sgc[c].pos += pulses;
+
+    if ( t_old )
+    {
+        if ( t_old % 2 ) t_old--;
+        if ( t_old ) _sgc[c].pos += (dir ? 1 : -1) * (t_old/2);
+    }
 
     return 0;
 }
