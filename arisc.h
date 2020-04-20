@@ -78,4 +78,19 @@ enum
 
 
 
+typedef struct {
+    uint32_t busy;
+    uint32_t pg_ch;
+    int32_t  pos;
+
+    uint32_t port[2];
+    uint32_t pin[2];
+    uint32_t inv[2];
+    uint32_t t0[2];
+    uint32_t t1[2];
+} _stepgen_ch_t;
+
+
+
+
 #endif
