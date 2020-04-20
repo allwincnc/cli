@@ -99,6 +99,8 @@ typedef struct {
 
 enum { STEP, DIR };
 
+#define STEPGEN_CH_MAX_CNT 8
+
 
 
 
