@@ -32,20 +32,20 @@ volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {d,d,d,d,d,d,d,d};
 
 
 
-static inline
+//static inline
 void gpio_spin_lock()
 {
     while ( *gpiod[GPIO_ARISC_LOCK] );
     *gpiod[GPIO_ARM_LOCK] = 1;
 }
 
-static inline
+//static inline
 void gpio_spin_unlock()
 {
     *gpiod[GPIO_ARM_LOCK] = 0;
 }
 
-static inline
+//static inline
 void gpio_port_setup(uint32_t port)
 {
     if ( !*gpiod[GPIO_USED] || port > *gpiod[GPIO_PORT_MAX_ID] )
@@ -57,7 +57,7 @@ void gpio_port_setup(uint32_t port)
     }
 }
 
-static inline
+//static inline
 int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
@@ -69,7 +69,7 @@ int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin)
     return 0;
 }
 
-static inline
+//static inline
 int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
@@ -81,7 +81,7 @@ int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin)
     return 0;
 }
 
-static inline
+//static inline
 uint32_t gpio_pin_get(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return 0;
@@ -89,7 +89,7 @@ uint32_t gpio_pin_get(uint32_t port, uint32_t pin)
     return *gpio[port] & (1UL << pin) ? HIGH : LOW;
 }
 
-static inline
+//static inline
 int32_t gpio_pin_set(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
@@ -101,7 +101,7 @@ int32_t gpio_pin_set(uint32_t port, uint32_t pin)
     return 0;
 }
 
-static inline
+//static inline
 int32_t gpio_pin_clr(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
@@ -113,14 +113,14 @@ int32_t gpio_pin_clr(uint32_t port, uint32_t pin)
     return 0;
 }
 
-static inline
+//static inline
 uint32_t gpio_port_get(uint32_t port)
 {
     if ( port >= GPIO_PORTS_CNT ) return 0;
     return *gpio[port];
 }
 
-static inline
+//static inline
 int32_t gpio_port_set(uint32_t port, uint32_t mask)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
@@ -131,7 +131,7 @@ int32_t gpio_port_set(uint32_t port, uint32_t mask)
     return 0;
 }
 
-static inline
+//static inline
 int32_t gpio_port_clr(uint32_t port, uint32_t mask)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
@@ -142,7 +142,7 @@ int32_t gpio_port_clr(uint32_t port, uint32_t mask)
     return 0;
 }
 
-static inline
+//static inline
 int32_t gpio_data_set(uint32_t name, uint32_t value)
 {
     if ( name >= GPIO_DATA_CNT ) return -1;
@@ -165,7 +165,7 @@ int32_t gpio_data_set(uint32_t name, uint32_t value)
     return 0;
 }
 
-static inline
+//static inline
 uint32_t gpio_data_get(uint32_t name)
 {
     if ( name >= GPIO_DATA_CNT ) return 0;
@@ -178,20 +178,20 @@ uint32_t gpio_data_get(uint32_t name)
 
 
 
-static inline
+//static inline
 void pg_spin_lock()
 {
     while ( *pgd[GPIO_ARISC_LOCK] );
     *pgd[GPIO_ARM_LOCK] = 1;
 }
 
-static inline
+//static inline
 void pg_spin_unlock()
 {
     *pgd[GPIO_ARM_LOCK] = 0;
 }
 
-static inline
+//static inline
 int32_t pg_data_set(uint32_t name, uint32_t value)
 {
     if ( name >= PG_DATA_CNT ) return -1;
@@ -204,7 +204,7 @@ int32_t pg_data_set(uint32_t name, uint32_t value)
     return 0;
 }
 
-static inline
+//static inline
 uint32_t pg_data_get(uint32_t name)
 {
     if ( name >= PG_DATA_CNT ) return 0;
@@ -214,7 +214,7 @@ uint32_t pg_data_get(uint32_t name)
     return value;
 }
 
-static inline
+//static inline
 int32_t pg_ch_data_set(uint32_t c, uint32_t name, uint32_t value)
 {
     if ( c >= PG_CH_MAX_CNT ) return -1;
@@ -225,7 +225,7 @@ int32_t pg_ch_data_set(uint32_t c, uint32_t name, uint32_t value)
     return 0;
 }
 
-static inline
+//static inline
 uint32_t pg_ch_data_get(uint32_t c, uint32_t name)
 {
     if ( c >= PG_CH_MAX_CNT ) return 0;
@@ -236,7 +236,7 @@ uint32_t pg_ch_data_get(uint32_t c, uint32_t name)
     return value;
 }
 
-static inline
+//static inline
 void stepgen_ch_setup(uint32_t c)
 {
     if ( _sgc[c].pg_ch[1] < PG_CH_MAX_CNT ) return;
@@ -255,7 +255,7 @@ void stepgen_ch_setup(uint32_t c)
     }
 }
 
-static inline
+//static inline
 int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin, uint32_t invert)
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
@@ -295,7 +295,7 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
     return 0;
 }
 
-static inline
+//static inline
 int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1)
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
@@ -320,7 +320,7 @@ int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1)
     return 0;
 }
 
-static inline
+//static inline
 int32_t stepgen_task_add(uint8_t c, int32_t pulses)
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
@@ -368,14 +368,14 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     return 0;
 }
 
-static inline
+//static inline
 int32_t stepgen_pos_get(uint32_t c)
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return 0;
     return _sgc[c].pos;
 }
 
-static inline
+//static inline
 int32_t stepgen_pos_set(uint32_t c, int32_t pos)
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
