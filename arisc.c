@@ -281,16 +281,12 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
         *pgc[c][PG_PORT] = port;
         *pgc[c][PG_PIN_MSK] = msk;
         *pgc[c][PG_PIN_MSKN] = mskn;
-        t = *pgc[c][PG_TASK_TOGGLES];
+        *pgc[c][PG_TASK_TOGGLES] = 0;
         _pg_spin_unlock();
 
-        if ( !t )
-        {
-            gpio_pin_setup_for_output(port, pin);
-
-            if ( invert ) gpio_pin_set(port, pin);
-            else gpio_pin_clr(port, pin);
-        }
+        gpio_pin_setup_for_output(port, pin);
+        if ( invert ) gpio_pin_set(port, pin);
+        else gpio_pin_clr(port, pin);
     }
 
     return 0;
