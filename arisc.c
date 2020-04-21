@@ -354,7 +354,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     if ( t_old % 2 )
     {
         if ( GPIO_PIN_GET(*pgc[s][PG_PORT], *pgc[s][PG_PIN_MSK]) )
-            GPIO_PIN_CLR(*pgc[s][PG_PORT], *pgc[s][PG_PIN_MSK]);
+            GPIO_PIN_CLR(*pgc[s][PG_PORT], *pgc[s][PG_PIN_MSKN]);
         else
             GPIO_PIN_SET(*pgc[s][PG_PORT], *pgc[s][PG_PIN_MSK]);
     }
