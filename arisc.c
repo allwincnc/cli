@@ -331,35 +331,30 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     uint32_t s = _sgc[c].pg_ch[STEP];
     uint32_t d = _sgc[c].pg_ch[DIR];
     uint32_t step_timeout = _sgc[c].t0[DIR] + _sgc[c].t1[DIR];
-    uint32_t dir, dir_real;
+    uint32_t dir;
     uint32_t dir_new = (pulses > 0) ? 0 : (1UL << _sgc[c].pin[DIR]);
     uint32_t t_old;
     uint32_t t_new = 2 * ((uint32_t)abs(pulses));
 
     _pg_spin_lock();
 
-    dir_real = GPIO_PIN_GET(_sgc[c].port[DIR], *pgc[d][PG_PIN_MSK]);
-    dir = _sgc[c].inv[DIR] ^ dir_real;
-
+    // change DIR?
+    dir = _sgc[c].inv[DIR] ^ GPIO_PIN_GET(_sgc[c].port[DIR], *pgc[d][PG_PIN_MSK]);
     if ( dir != dir_new )
     {
         *pgc[d][PG_TASK_TICK] = *pgc[c][PG_TIMER_TICK];
         *pgc[d][PG_TASK_TOGGLES] = 1;
-        *pgc[d][PG_TASK_TIMEOUT] = _sgc[c].t0[DIR];
-        if ( dir_real ) *pgc[d][PG_TASK_T0] = _sgc[c].t1[DIR];
-        else            *pgc[d][PG_TASK_T1] = _sgc[c].t1[DIR];
-
+        *pgc[d][PG_TASK_TIMEOUT] = *pgc[d][PG_TASK_T0];
         *pgc[s][PG_TASK_TIMEOUT] = step_timeout;
     }
-    else
-    {
-        *pgc[s][PG_TASK_TIMEOUT] = 0;
-    }
+    else *pgc[s][PG_TASK_TIMEOUT] = 0;
 
+    // setup pulses to do
     t_old = *pgc[s][PG_TASK_TOGGLES];
     *pgc[s][PG_TASK_TICK] = *pgc[c][PG_TIMER_TICK];
     *pgc[s][PG_TASK_TOGGLES] = t_new;
 
+    // complete a STEP
     if ( t_old % 2 )
     {
         if ( GPIO_PIN_GET(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]) )
@@ -372,6 +367,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
 
     _sgc[c].pos += pulses;
 
+    // real position adjust
     if ( t_old )
     {
         if ( t_old % 2 ) t_old--;
