@@ -46,15 +46,29 @@ void _gpio_spin_unlock()
 }
 
 static inline
-void gpio_port_setup(uint32_t port)
+void _gpio_port_setup(uint32_t port)
 {
-    if ( !*gpiod[GPIO_USED] || port > *gpiod[GPIO_PORT_MAX_ID] )
+    if ( *gpiod[GPIO_USED] && port <= *gpiod[GPIO_PORT_MAX_ID] ) return;
+
+    _gpio_spin_lock();
+
+    *gpiod[GPIO_USED] = 1;
+
+    if ( port > *gpiod[GPIO_PORT_MAX_ID] )
     {
-        _gpio_spin_lock();
-        *gpiod[GPIO_USED] = 1;
         *gpiod[GPIO_PORT_MAX_ID] = port;
-        _gpio_spin_unlock();
+
+        uint32_t p = *gpiod[GPIO_PORT_MAX_ID] + 1;
+        for ( ; p <= port; p++ )
+        {
+            *gpio_shm_set[p] = 0;
+            *gpio_shm_clr[p] = 0;
+            *gpio_shm_out[p] = 0;
+            *gpio_shm_inp[p] = 0;
+        }
     }
+
+    _gpio_spin_unlock();
 }
 
 static inline
@@ -62,7 +76,7 @@ int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
     if ( pin >= GPIO_PINS_CNT ) return -2;
-    gpio_port_setup(port);
+    _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_out[port] |= (1UL << pin);
     _gpio_spin_unlock();
@@ -74,7 +88,7 @@ int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
     if ( pin >= GPIO_PINS_CNT ) return -2;
-    gpio_port_setup(port);
+    _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_inp[port] |= (1UL << pin);
     _gpio_spin_unlock();
@@ -94,7 +108,7 @@ int32_t gpio_pin_set(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
     if ( pin >= GPIO_PINS_CNT ) return -2;
-    gpio_port_setup(port);
+    _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_set[port] |= (1UL << pin);
     _gpio_spin_unlock();
@@ -106,7 +120,7 @@ int32_t gpio_pin_clr(uint32_t port, uint32_t pin)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
     if ( pin >= GPIO_PINS_CNT ) return -2;
-    gpio_port_setup(port);
+    _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_clr[port] |= (1UL << pin);
     _gpio_spin_unlock();
@@ -124,7 +138,7 @@ static inline
 int32_t gpio_port_set(uint32_t port, uint32_t mask)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
-    gpio_port_setup(port);
+    _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_set[port] = mask;
     _gpio_spin_unlock();
@@ -135,7 +149,7 @@ static inline
 int32_t gpio_port_clr(uint32_t port, uint32_t mask)
 {
     if ( port >= GPIO_PORTS_CNT ) return -1;
-    gpio_port_setup(port);
+    _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_clr[port] = mask;
     _gpio_spin_unlock();
