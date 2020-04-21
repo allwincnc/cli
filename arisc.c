@@ -264,7 +264,7 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
     if ( pin >= GPIO_PINS_CNT ) return -4;
     _stepgen_ch_setup(c);
 
-    _sgc[c].inv[type] = invert ? HIGH : LOW;
+    _sgc[c].inv[type] = (invert ? HIGH : LOW) << pin;
 
     if ( port != _sgc[c].port[type] || pin != _sgc[c].pin[type] )
     {
@@ -329,9 +329,9 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
 
     #define s _sgc[c].pg_ch[STEP]
     #define d _sgc[c].pg_ch[DIR]
-    uint32_t t_old, t_new = 2 * (uint32_t)(pulses > 0 ? pulses : -pulses);
-    uint32_t dir, dir_real, dir_new = pulses > 0 ? 0 : 1;
     uint32_t step_timeout = _sgc[c].t0[DIR] + _sgc[c].t1[DIR];
+    uint32_t dir, dir_real, dir_new = pulses > 0 ? 0 : 1;
+    uint32_t t_old, t_new = 2 * (uint32_t)(dir_new ? pulses : -pulses);
 
     _pg_spin_lock();
 
