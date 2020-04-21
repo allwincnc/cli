@@ -366,7 +366,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     _pg_spin_unlock();
 #if DEBUG
     clock_t end = clock();
-    printf("stepgen_task_add: lock time = %f",
+    printf("stepgen_task_add: lock time = %f \n",
            (double)((end - start)/CLOCKS_PER_SEC));
 #endif
 
