@@ -608,22 +608,22 @@ int32_t parse_and_exec(const char *str)
 
     if ( !reg_match(str, "gpio_pin_setup_for_output *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", gpio_pin_setup_for_output(arg[0], arg[1]));
+        printf("%s\n", (gpio_pin_setup_for_output(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_setup_for_input *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", gpio_pin_setup_for_input(arg[0], arg[1]));
+        printf("%s\n", (gpio_pin_setup_for_input(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", gpio_pin_set(arg[0], arg[1]));
+        printf("%s\n", (gpio_pin_set(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_clr *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", gpio_pin_clr(arg[0], arg[1]));
+        printf("%s\n", (gpio_pin_clr(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_get *\\("UINT","UINT"\\)", &arg[0], 2) )
@@ -633,12 +633,12 @@ int32_t parse_and_exec(const char *str)
     }
     if ( !reg_match(str, "gpio_port_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", gpio_port_set(arg[0], arg[1]));
+        printf("%s\n", (gpio_port_set(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_port_clr *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", gpio_port_clr(arg[0], arg[1]));
+        printf("%s\n", (gpio_port_clr(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_port_get *\\("UINT"\\)", &arg[0], 1) )
@@ -657,7 +657,7 @@ int32_t parse_and_exec(const char *str)
     }
     if ( !reg_match(str, "gpio_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", gpio_data_set(arg[0], arg[1]));
+        printf("%s\n", (gpio_data_set(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
 
@@ -665,27 +665,27 @@ int32_t parse_and_exec(const char *str)
 
     if ( !reg_match(str, "stepgen_pin_setup *\\("UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 5) )
     {
-        printf("%i\n", stepgen_pin_setup(arg[0], arg[1], arg[2], arg[3], arg[4]));
+        printf("%s\n", (stepgen_pin_setup(arg[0], arg[1], arg[2], arg[3], arg[4])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "stepgen_task_add *\\("UINT","INT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", stepgen_task_add(arg[0], arg[1]));
+        printf("%s\n", (stepgen_task_add(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "stepgen_time_setup *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
     {
-        printf("%i\n", stepgen_time_setup(arg[0], arg[1], arg[2], arg[3]));
+        printf("%s\n", (stepgen_time_setup(arg[0], arg[1], arg[2], arg[3])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "stepgen_pos_get *\\("UINT"\\)", &arg[0], 1) )
     {
-        printf("%i\n", stepgen_pos_get(arg[0]));
+        printf("%u\n", stepgen_pos_get(arg[0]));
         return 0;
     }
     if ( !reg_match(str, "stepgen_pos_set *\\("UINT","INT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", stepgen_pos_set(arg[0], (int32_t)arg[1]));
+        printf("%s\n", (stepgen_pos_set(arg[0], (int32_t)arg[1])) ? "ERROR" : "OK");
         return 0;
     }
 
@@ -698,7 +698,7 @@ int32_t parse_and_exec(const char *str)
     }
     if ( !reg_match(str, "pg_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", pg_data_set(arg[0], arg[1]));
+        printf("%s\n", (pg_data_set(arg[0], arg[1])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 2) )
@@ -708,7 +708,7 @@ int32_t parse_and_exec(const char *str)
     }
     if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
     {
-        printf("%i\n", pg_ch_data_set(arg[0], arg[1], arg[2]));
+        printf("%s\n", (pg_ch_data_set(arg[0], arg[1], arg[2])) ? "ERROR" : "OK");
         return 0;
     }
 
