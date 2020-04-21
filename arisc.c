@@ -327,24 +327,36 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     if ( !pulses ) return -2;
     _stepgen_ch_setup(c);
 
-    int32_t dir = _sgc[c].inv[DIR] ^ gpio_pin_get(_sgc[c].port[DIR], _sgc[c].pin[DIR]);
-    uint32_t step_delay = 0;
-    uint32_t t_old;
-    uint32_t t_new = 2 * (uint32_t)(pulses > 0 ? pulses : -pulses);
-    uint32_t s = _sgc[c].pg_ch[STEP];
-    uint32_t d = _sgc[c].pg_ch[DIR];
-
-    if ( (dir && pulses > 0) || (!dir && pulses < 0) )
-        step_delay = _sgc[c].t0[DIR] + _sgc[c].t1[DIR];
+    #define s _sgc[c].pg_ch[STEP]
+    #define d _sgc[c].pg_ch[DIR]
+    uint32_t t_old, t_new = 2 * (uint32_t)(pulses > 0 ? pulses : -pulses);
+    uint32_t dir, dir_real, dir_new = pulses > 0 ? 0 : 1;
+    uint32_t step_timeout = _sgc[c].t0[DIR] + _sgc[c].t1[DIR];
 
     _pg_spin_lock();
-    if ( step_delay )
+
+    dir_real = GPIO_PIN_GET(_sgc[c].port[DIR], *pgc[d][PG_PIN_MSK]);
+    dir = _sgc[c].inv[DIR] ^ dir_real;
+
+    if ( dir != dir_new )
     {
         *pgc[d][PG_TASK_TICK] = *pgc[c][PG_TIMER_TICK];
-        *pgc[d][PG_TASK_TIMEOUT] = 0;
         *pgc[d][PG_TASK_TOGGLES] = 1;
+        *pgc[d][PG_TASK_TIMEOUT] = _sgc[c].t0[DIR];
+        if ( dir_real ) *pgc[d][PG_TASK_T0] = _sgc[c].t1[DIR];
+        else            *pgc[d][PG_TASK_T1] = _sgc[c].t1[DIR];
+
+        *pgc[s][PG_TASK_TIMEOUT] = step_timeout;
     }
+    else
+    {
+        *pgc[s][PG_TASK_TIMEOUT] = 0;
+    }
+
     t_old = *pgc[s][PG_TASK_TOGGLES];
+    *pgc[s][PG_TASK_TICK] = *pgc[c][PG_TIMER_TICK];
+    *pgc[s][PG_TASK_TOGGLES] = t_new;
+
     if ( t_old % 2 )
     {
         if ( GPIO_PIN_GET(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]) )
@@ -352,10 +364,11 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
         else
             GPIO_PIN_SET(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]);
     }
-    *pgc[s][PG_TASK_TICK] = *pgc[c][PG_TIMER_TICK];
-    *pgc[s][PG_TASK_TIMEOUT] = step_delay;
-    *pgc[s][PG_TASK_TOGGLES] = t_new;
+
     _pg_spin_unlock();
+
+    #undef s
+    #undef d
 
     _sgc[c].pos += pulses;
 
