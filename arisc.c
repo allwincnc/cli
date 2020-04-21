@@ -272,7 +272,7 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
         _sgc[c].port[type] = port;
         _sgc[c].pin[type] = pin;
 
-        uint32_t t, msk, mskn;
+        uint32_t msk, mskn;
         msk = (1UL << pin);
         mskn = ~msk;
         c = _sgc[c].pg_ch[type];
