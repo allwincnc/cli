@@ -680,7 +680,7 @@ int32_t parse_and_exec(const char *str)
     }
     if ( !reg_match(str, "stepgen_pos_get *\\("UINT"\\)", &arg[0], 1) )
     {
-        printf("%u\n", stepgen_pos_get(arg[0]));
+        printf("%i\n", stepgen_pos_get(arg[0]));
         return 0;
     }
     if ( !reg_match(str, "stepgen_pos_set *\\("UINT","INT"\\)", &arg[0], 2) )
