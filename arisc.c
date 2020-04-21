@@ -703,7 +703,7 @@ int32_t parse_and_exec(const char *str)
     }
     if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%u\n", pg_ch_data_get(arg[0], arg[2]));
+        printf("%u\n", pg_ch_data_get(arg[0], arg[1]));
         return 0;
     }
     if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
