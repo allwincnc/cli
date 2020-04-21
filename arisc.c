@@ -307,8 +307,8 @@ int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1)
         _sgc[c].t0[type] = t0;
         _sgc[c].t1[type] = t1;
 
-        t0 = (uint32_t)((uint64_t)t0 * (uint64_t)pgd[PG_TIMER_FREQ] / (uint64_t)1000000);
-        t1 = (uint32_t)((uint64_t)t1 * (uint64_t)pgd[PG_TIMER_FREQ] / (uint64_t)1000000);
+        t0 = (uint32_t)((uint64_t)t0 * (uint64_t)*pgd[PG_TIMER_FREQ] / (uint64_t)1000000);
+        t1 = (uint32_t)((uint64_t)t1 * (uint64_t)*pgd[PG_TIMER_FREQ] / (uint64_t)1000000);
         c = _sgc[c].pg_ch[type];
 
         pg_spin_lock();
