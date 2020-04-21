@@ -334,7 +334,8 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     uint32_t t_new = 2 * ((uint32_t)abs(pulses));
 
 #if DEBUG
-    clock_t start = clock();
+    struct timespec t1, t2;
+    clock_gettime(CLOCK_MONOTONIC, &t1);
 #endif
     _pg_spin_lock();
 
@@ -365,9 +366,8 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
 
     _pg_spin_unlock();
 #if DEBUG
-    clock_t end = clock();
-    printf("stepgen_task_add: lock time = %f \n",
-           (double)((end - start)/CLOCKS_PER_SEC));
+    clock_gettime(CLOCK_MONOTONIC, &t2);
+    printf("stepgen_task_add: lock time = %ld nsec\n", t2.tv_nsec - t1.tv_nsec);
 #endif
 
     _sgc[c].pos += pulses;
