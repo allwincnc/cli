@@ -5,6 +5,10 @@
 
 
 
+#define DEBUG 1
+
+
+
 
 #define ARISC_FW_BASE           (0x00040000) // for ARM CPU it's 0x00040000
 #define ARISC_FW_SIZE           ((8+8+32)*1024)

@@ -7,6 +7,7 @@
 #include <sys/mman.h>
 #include <byteswap.h>
 #include <regex.h>
+#include <time.h>
 #include "arisc.h"
 
 
@@ -332,6 +333,9 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     uint32_t t_old;
     uint32_t t_new = 2 * ((uint32_t)abs(pulses));
 
+#if DEBUG
+    clock_t start = clock();
+#endif
     _pg_spin_lock();
 
     // change DIR?
@@ -360,6 +364,11 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     }
 
     _pg_spin_unlock();
+#if DEBUG
+    clock_t end = clock();
+    printf("stepgen_task_add: lock time = %f",
+           (double)((end - start)/CLOCKS_PER_SEC));
+#endif
 
     _sgc[c].pos += pulses;
 
