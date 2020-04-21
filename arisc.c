@@ -26,7 +26,7 @@ volatile uint32_t * pgc[PG_CH_MAX_CNT][PG_PARAM_CNT] = {0};
 volatile uint32_t * pgd[PG_DATA_CNT] = {0};
 
 #define d {0,{UINT32_MAX,UINT32_MAX},{UINT32_MAX,UINT32_MAX},{UINT32_MAX,UINT32_MAX},{0,0},{0,0},{0,0}}
-_stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {d,d,d,d,d,d,d,d};
+volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {d,d,d,d,d,d,d,d};
 #undef d
 
 
