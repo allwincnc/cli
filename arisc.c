@@ -328,7 +328,6 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     stepgen_ch_setup(c);
 
     int32_t dir = _sgc[c].inv[DIR] ^ gpio_pin_get(_sgc[c].port[DIR], _sgc[c].pin[DIR]);
-    uint32_t step_inv_msk = _sgc[c].inv[STEP] << _sgc[c].pin[STEP];
     uint32_t step_delay = 0;
     uint32_t t_old;
     uint32_t t_new = 2 * (uint32_t)(pulses > 0 ? pulses : -pulses);
@@ -348,7 +347,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     t_old = *pgc[s][PG_TASK_TOGGLES];
     if ( t_old % 2 )
     {
-        if ( step_inv_msk ^ GPIO_PIN_GET(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]) )
+        if ( GPIO_PIN_GET(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]) )
             GPIO_PIN_CLR(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]);
         else
             GPIO_PIN_SET(_sgc[c].port[STEP], *pgc[s][PG_PIN_MSK]);
