@@ -15,12 +15,12 @@
 static uint32_t *shm_vrt_addr, *gpio_vrt_addr, *r_gpio_vrt_addr;
 static char *app_name = 0;
 
-volatile uint32_t * gpio[GPIO_PORTS_CNT] = {0};
-volatile uint32_t * gpio_shm_set[GPIO_PORTS_CNT] = {0};
-volatile uint32_t * gpio_shm_clr[GPIO_PORTS_CNT] = {0};
-volatile uint32_t * gpio_shm_out[GPIO_PORTS_CNT] = {0};
-volatile uint32_t * gpio_shm_inp[GPIO_PORTS_CNT] = {0};
-volatile uint32_t * gpiod[GPIO_PORTS_CNT] = {0};
+volatile uint32_t * gpio[GPIO_PORTS_MAX_CNT] = {0};
+volatile uint32_t * gpio_shm_set[GPIO_PORTS_MAX_CNT] = {0};
+volatile uint32_t * gpio_shm_clr[GPIO_PORTS_MAX_CNT] = {0};
+volatile uint32_t * gpio_shm_out[GPIO_PORTS_MAX_CNT] = {0};
+volatile uint32_t * gpio_shm_inp[GPIO_PORTS_MAX_CNT] = {0};
+volatile uint32_t * gpiod[GPIO_PORTS_MAX_CNT] = {0};
 
 volatile uint32_t * pgc[PG_CH_MAX_CNT][PG_PARAM_CNT] = {0};
 volatile uint32_t * pgd[PG_DATA_CNT] = {0};
@@ -48,17 +48,15 @@ void _gpio_spin_unlock()
 static inline
 void _gpio_port_setup(uint32_t port)
 {
-    if ( *gpiod[GPIO_USED] && port <= *gpiod[GPIO_PORT_MAX_ID] ) return;
+    if ( *gpiod[GPIO_USED] && port < *gpiod[GPIO_PORTS_CNT] ) return;
 
     _gpio_spin_lock();
 
     *gpiod[GPIO_USED] = 1;
 
-    if ( port > *gpiod[GPIO_PORT_MAX_ID] )
+    if ( port >= *gpiod[GPIO_PORTS_CNT] )
     {
-        *gpiod[GPIO_PORT_MAX_ID] = port;
-
-        uint32_t p = *gpiod[GPIO_PORT_MAX_ID] + 1;
+        uint32_t p = *gpiod[GPIO_PORTS_CNT];
         for ( ; p <= port; p++ )
         {
             *gpio_shm_set[p] = 0;
@@ -66,6 +64,8 @@ void _gpio_port_setup(uint32_t port)
             *gpio_shm_out[p] = 0;
             *gpio_shm_inp[p] = 0;
         }
+
+        *gpiod[GPIO_PORTS_CNT] = port + 1;
     }
 
     _gpio_spin_unlock();
@@ -74,8 +74,8 @@ void _gpio_port_setup(uint32_t port)
 static inline
 int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin)
 {
-    if ( port >= GPIO_PORTS_CNT ) return -1;
-    if ( pin >= GPIO_PINS_CNT ) return -2;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+    if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_out[port] |= (1UL << pin);
@@ -86,8 +86,8 @@ int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin)
 static inline
 int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin)
 {
-    if ( port >= GPIO_PORTS_CNT ) return -1;
-    if ( pin >= GPIO_PINS_CNT ) return -2;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+    if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_inp[port] |= (1UL << pin);
@@ -98,16 +98,16 @@ int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin)
 static inline
 uint32_t gpio_pin_get(uint32_t port, uint32_t pin)
 {
-    if ( port >= GPIO_PORTS_CNT ) return 0;
-    if ( pin >= GPIO_PINS_CNT ) return 0;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
+    if ( pin >= GPIO_PINS_MAX_CNT ) return 0;
     return *gpio[port] & (1UL << pin) ? HIGH : LOW;
 }
 
 static inline
 int32_t gpio_pin_set(uint32_t port, uint32_t pin)
 {
-    if ( port >= GPIO_PORTS_CNT ) return -1;
-    if ( pin >= GPIO_PINS_CNT ) return -2;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+    if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_set[port] |= (1UL << pin);
@@ -118,8 +118,8 @@ int32_t gpio_pin_set(uint32_t port, uint32_t pin)
 static inline
 int32_t gpio_pin_clr(uint32_t port, uint32_t pin)
 {
-    if ( port >= GPIO_PORTS_CNT ) return -1;
-    if ( pin >= GPIO_PINS_CNT ) return -2;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+    if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_clr[port] |= (1UL << pin);
@@ -130,14 +130,14 @@ int32_t gpio_pin_clr(uint32_t port, uint32_t pin)
 static inline
 uint32_t gpio_port_get(uint32_t port)
 {
-    if ( port >= GPIO_PORTS_CNT ) return 0;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
     return *gpio[port];
 }
 
 static inline
 int32_t gpio_port_set(uint32_t port, uint32_t mask)
 {
-    if ( port >= GPIO_PORTS_CNT ) return -1;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_set[port] = mask;
@@ -148,7 +148,7 @@ int32_t gpio_port_set(uint32_t port, uint32_t mask)
 static inline
 int32_t gpio_port_clr(uint32_t port, uint32_t mask)
 {
-    if ( port >= GPIO_PORTS_CNT ) return -1;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *gpio_shm_clr[port] = mask;
@@ -161,19 +161,8 @@ int32_t gpio_data_set(uint32_t name, uint32_t value)
 {
     if ( name >= GPIO_DATA_CNT ) return -1;
     if ( name == GPIO_ARISC_LOCK ) return -2;
-    if ( name == GPIO_PORT_MAX_ID && (value >= GPIO_PORTS_CNT) ) return -3;
+    if ( name == GPIO_PORTS_CNT && (value >= GPIO_PORTS_MAX_CNT) ) return -3;
     _gpio_spin_lock();
-    if ( name == GPIO_PORT_MAX_ID || name == GPIO_USED )
-    {
-        uint32_t port;
-        for ( port = GPIO_PORTS_CNT; port--; )
-        {
-            *gpio_shm_set[port] = 0;
-            *gpio_shm_clr[port] = 0;
-            *gpio_shm_out[port] = 0;
-            *gpio_shm_inp[port] = 0;
-        }
-    }
     *gpiod[name] = value;
     _gpio_spin_unlock();
     return 0;
@@ -274,8 +263,8 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
 {
     if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
     if ( type >= 2 ) return -2;
-    if ( port >= GPIO_PORTS_CNT ) return -3;
-    if ( pin >= GPIO_PINS_CNT ) return -4;
+    if ( port >= GPIO_PORTS_MAX_CNT ) return -3;
+    if ( pin >= GPIO_PINS_MAX_CNT ) return -4;
     _stepgen_ch_setup(c);
 
     _sgc[c].inv[type] = invert ? 1UL << pin : 0;
@@ -426,7 +415,7 @@ void mem_init(void)
     off = ARISC_SHM_BASE & (4096 - 1);
     shm_vrt_addr = mmap(NULL, ARISC_SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
-    for ( port = 0; port < GPIO_PORTS_CNT; port++ )
+    for ( port = 0; port < GPIO_PORTS_MAX_CNT; port++ )
     {
         gpio_shm_set[port] = shm_vrt_addr + (off + port*4 + (GPIO_SHM_SET_BASE - GPIO_SHM_BASE))/4;
         gpio_shm_clr[port] = shm_vrt_addr + (off + port*4 + (GPIO_SHM_CLR_BASE - GPIO_SHM_BASE))/4;
@@ -445,7 +434,7 @@ void mem_init(void)
     off = GPIO_BASE & (4096 - 1);
     gpio_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (gpio_vrt_addr == MAP_FAILED) { printf("ERROR: gpio mmap() failed\n"); return; }
-    for ( port = 0; port < (GPIO_PORTS_CNT - 1); port++ )
+    for ( port = 0; port < (GPIO_PORTS_MAX_CNT - 1); port++ )
     {
         gpio[port] = (uint32_t *) ( gpio_vrt_addr + (off + port*GPIO_BANK_SIZE + 16)/4 );
     }
@@ -455,7 +444,7 @@ void mem_init(void)
     off = GPIO_R_BASE & (4096 - 1);
     r_gpio_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (r_gpio_vrt_addr == MAP_FAILED) { printf("ERROR: r_gpio mmap() failed\n"); return; }
-    gpio[GPIO_PORTS_CNT - 1] = (uint32_t *) ( r_gpio_vrt_addr + (off+16)/4 );
+    gpio[GPIO_PORTS_MAX_CNT - 1] = (uint32_t *) ( r_gpio_vrt_addr + (off+16)/4 );
 
     // no need to keep phy memory file open after mmap
     close(mem_fd);
@@ -624,7 +613,8 @@ int32_t parse_and_exec(const char *str)
     If you are using stdin/stdout mode, omit `%s` and any \" brackets\n\
 \n",
             app_name, app_name, app_name,
-            (GPIO_PORTS_CNT - 1), (GPIO_PINS_CNT - 1),
+            (GPIO_PORTS_MAX_CNT - 1),
+            (GPIO_PINS_MAX_CNT - 1),
             app_name
         );
         return 0;
