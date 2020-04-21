@@ -327,13 +327,13 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     if ( !pulses ) return -2;
     _stepgen_ch_setup(c);
 
-    #define s _sgc[c].pg_ch[STEP]
-    #define d _sgc[c].pg_ch[DIR]
+    uint32_t s = _sgc[c].pg_ch[STEP];
+    uint32_t d = _sgc[c].pg_ch[DIR];
     uint32_t step_timeout = _sgc[c].t0[DIR] + _sgc[c].t1[DIR];
     uint32_t dir, dir_real;
-    uint32_t dir_new = pulses > 0 ? 0 : (1UL << _sgc[c].pin[DIR]);
+    uint32_t dir_new = (pulses > 0) ? 0 : (1UL << _sgc[c].pin[DIR]);
     uint32_t t_old;
-    uint32_t t_new = 2 * ((uint32_t)(dir_new ? pulses : -pulses));
+    uint32_t t_new = 2 * ((uint32_t)abs(pulses));
 
     _pg_spin_lock();
 
@@ -368,9 +368,6 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
     }
 
     _pg_spin_unlock();
-
-    #undef s
-    #undef d
 
     _sgc[c].pos += pulses;
 
