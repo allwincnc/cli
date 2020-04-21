@@ -584,6 +584,7 @@ int32_t parse_and_exec(const char *str)
     port        GPIO port (0..%u | PA/PB/PC/PD/PE/PF/PG/PL)\n\
     pin         GPIO pin (0..%u)\n\
     mask        GPIO pins mask (u32)\n\
+    channel     channel ID (u32)\n\
     type        0 = STEP, 1 = DIR\n\
     invert      invert GPIO pin? (0/1)\n\
     pulses      number of pin pulses (i32)\n\
