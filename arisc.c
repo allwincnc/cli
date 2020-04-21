@@ -242,9 +242,7 @@ uint32_t pg_ch_data_get(uint32_t c, uint32_t name)
 static inline
 void _stepgen_ch_setup(uint32_t c)
 {
-    if ( *pgd[PG_USED] &&
-         _sgc[c].pg_ch[DIR] < PG_CH_MAX_CNT &&
-         _sgc[c].pg_ch[DIR] < *pgd[PG_CH_CNT] ) return;
+    if ( *pgd[PG_USED] && _sgc[c].pg_ch[DIR] < *pgd[PG_CH_CNT] ) return;
 
     _sgc[c].pg_ch[STEP] = 2*c;
     _sgc[c].pg_ch[DIR] = 2*c + 1;
@@ -254,7 +252,7 @@ void _stepgen_ch_setup(uint32_t c)
 
     _pg_spin_lock();
     *pgd[PG_USED] = 1;
-    *pgd[PG_CH_CNT] = _sgc[c].pg_ch[DIR] + 1;
+    *pgd[PG_CH_CNT] = pg_ch_cnt;
     _pg_spin_unlock();
 }
 
