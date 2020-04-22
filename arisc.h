@@ -44,8 +44,6 @@ enum
     GPIO_DATA_CNT
 };
 
-#define GPIO_SPINLOCK_SOFT      0
-#define GPIO_SPINLOCK_CHECK     0
 #define GPIO_SPINLOCK_ID        (SPINLOCK_CNT - 1)
 #define GPIO_SPINLOCK_MASK      (1UL << GPIO_SPINLOCK_ID)
 
@@ -98,10 +96,8 @@ enum
     PG_DATA_CNT
 };
 
-#define PG_SPINLOCK_SOFT    0
 #define PG_SPINLOCK_ID      (SPINLOCK_CNT - 2)
 #define PG_SPINLOCK_MASK    (1UL << PG_SPINLOCK_ID)
-#define PG_SPINLOCK_CHECK   0
 
 #define PG_SHM_BASE         (ARISC_SHM_BASE + GPIO_SHM_SIZE)
 #define PG_SHM_CH_BASE      (PG_SHM_BASE)

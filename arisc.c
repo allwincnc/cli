@@ -16,16 +16,10 @@
 static char *app_name = 0;
 static uint32_t *_shm_vrt_addr, *_gpio_vrt_addr, *_r_gpio_vrt_addr;
 
-#if !GPIO_SPINLOCK_SOFT || !PG_SPINLOCK_SOFT
 static uint32_t *_spinlock_vrt_addr;
 volatile uint32_t * _spinlock_status = 0;
-#endif
-#if !GPIO_SPINLOCK_SOFT
 volatile uint32_t * _gpio_spinlock = 0;
-#endif
-#if !PG_SPINLOCK_SOFT
 volatile uint32_t * _pg_spinlock = 0;
-#endif
 
 uint32_t _gpio_buf[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio[GPIO_PORTS_MAX_CNT] = {0};
@@ -48,27 +42,13 @@ volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {d,d,d,d,d,d,d,d};
 static inline
 void _gpio_spin_lock()
 {
-#if GPIO_SPINLOCK_SOFT
-    while ( *_gpiod[GPIO_ARISC_LOCK] );
-    *_gpiod[GPIO_ARM_LOCK] = 1;
-#else
-#if GPIO_SPINLOCK_CHECK
-    // check the lock status
-    while ( *_spinlock_status & GPIO_SPINLOCK_MASK );
-#endif
-    // try to lock
     while ( *_gpio_spinlock );
-#endif
 }
 
 static inline
 void _gpio_spin_unlock()
 {
-#if GPIO_SPINLOCK_SOFT
-    *_gpiod[GPIO_ARM_LOCK] = 0;
-#else
     *_gpio_spinlock = 0;
-#endif
 }
 
 static inline
@@ -288,27 +268,13 @@ uint32_t gpio_data_get(uint32_t name, uint32_t safe)
 static inline
 void _pg_spin_lock()
 {
-#if PG_SPINLOCK_SOFT
-    while ( *_pgd[GPIO_ARISC_LOCK] );
-    *_pgd[GPIO_ARM_LOCK] = 1;
-#else
-#if PG_SPINLOCK_CHECK
-    // check the lock status
-    while ( *_spinlock_status & PG_SPINLOCK_MASK );
-#endif
-    // try to lock
     while ( *_pg_spinlock );
-#endif
 }
 
 static inline
 void _pg_spin_unlock()
 {
-#if PG_SPINLOCK_SOFT
-    *_pgd[GPIO_ARM_LOCK] = 0;
-#else
     *_pg_spinlock = 0;
-#endif
 }
 
 static inline
@@ -588,7 +554,6 @@ void mem_init(void)
     if (_r_gpio_vrt_addr == MAP_FAILED) { printf("ERROR: r_gpio mmap() failed\n"); return; }
     _gpio[GPIO_PORTS_MAX_CNT - 1] = (uint32_t *) ( _r_gpio_vrt_addr + (off+16)/4 );
 
-#if !GPIO_SPINLOCK_SOFT || !PG_SPINLOCK_SOFT
     // mmap spinlock
     addr = SPINLOCK_BASE & ~(4096 - 1);
     off = SPINLOCK_BASE & (4096 - 1);
@@ -596,15 +561,10 @@ void mem_init(void)
     if (_spinlock_vrt_addr == MAP_FAILED) { printf("ERROR: r_gpio mmap() failed\n"); return; }
     _spinlock_status = (uint32_t *)
         ( _spinlock_vrt_addr + (off + (SPINLOCK_STATUS_REG - SPINLOCK_BASE))/4 );
-#if !GPIO_SPINLOCK_SOFT
     _gpio_spinlock = (uint32_t *)
         ( _spinlock_vrt_addr + (off + (SPINLOCK_LOCK_REG(GPIO_SPINLOCK_ID) - SPINLOCK_BASE))/4 );
-#endif
-#if !PG_SPINLOCK_SOFT
     _pg_spinlock = (uint32_t *)
         ( _spinlock_vrt_addr + (off + (SPINLOCK_LOCK_REG(PG_SPINLOCK_ID) - SPINLOCK_BASE))/4 );
-#endif
-#endif
 
     // no need to keep phy memory file open after mmap
     close(mem_fd);
@@ -615,9 +575,7 @@ void mem_deinit(void)
     munmap(_shm_vrt_addr, ARISC_SHM_SIZE);
     munmap(_gpio_vrt_addr, 4096);
     munmap(_r_gpio_vrt_addr, 4096);
-#if !GPIO_SPINLOCK_SOFT || !PG_SPINLOCK_SOFT
     munmap(_spinlock_vrt_addr, 4096);
-#endif
 }
 
 
