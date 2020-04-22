@@ -451,7 +451,7 @@ void mem_init(void)
     off = GPIO_R_BASE & (4096 - 1);
     _r_gpio_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_r_gpio_vrt_addr == MAP_FAILED) { printf("ERROR: r_gpio mmap() failed\n"); return; }
-    _GPIO[PL] = (_GPIO_PORT_REG_t *)(_gpio_vrt_addr + off/4);
+    _GPIO[PL] = (_GPIO_PORT_REG_t *)(_r_gpio_vrt_addr + off/4);
 
     // mmap spinlock
     addr = SPINLOCK_BASE & ~(4096 - 1);
