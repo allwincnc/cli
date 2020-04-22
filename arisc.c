@@ -27,7 +27,7 @@ volatile uint32_t * _gpio_spinlock = 0;
 volatile uint32_t * _pg_spinlock = 0;
 #endif
 
-volatile uint32_t _gpio_state[GPIO_PORTS_MAX_CNT] = {0};
+uint32_t _gpio_state[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio_shm_set[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio_shm_clr[GPIO_PORTS_MAX_CNT] = {0};
