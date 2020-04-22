@@ -27,6 +27,7 @@ volatile uint32_t * _gpio_spinlock = 0;
 volatile uint32_t * _pg_spinlock = 0;
 #endif
 
+volatile uint32_t _gpio_state[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio_shm_set[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio_shm_clr[GPIO_PORTS_MAX_CNT] = {0};
@@ -184,7 +185,9 @@ int32_t gpio_port_clr(uint32_t port, uint32_t mask)
 static inline
 uint32_t* gpio_all_get()
 {
-    return (uint32_t*) _gpio[0];
+    uint32_t port;
+    for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_state[port] = *_gpio[port];
+    return (uint32_t*) &_gpio_state[0];
 }
 
 static inline
