@@ -98,10 +98,13 @@ void _gpio_port_setup(uint32_t port)
 }
 
 static inline
-int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin)
+int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin, uint32_t safe)
 {
-    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
-    if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+    }
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *_gpio_shm_out[port] |= (1UL << pin);
@@ -110,10 +113,13 @@ int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin)
 }
 
 static inline
-int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin)
+int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin, uint32_t safe)
 {
-    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
-    if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+    }
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *_gpio_shm_inp[port] |= (1UL << pin);
@@ -122,18 +128,24 @@ int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin)
 }
 
 static inline
-uint32_t gpio_pin_get(uint32_t port, uint32_t pin)
+uint32_t gpio_pin_get(uint32_t port, uint32_t pin, uint32_t safe)
 {
-    if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
-    if ( pin >= GPIO_PINS_MAX_CNT ) return 0;
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return 0;
+    }
     return *_gpio[port] & (1UL << pin) ? HIGH : LOW;
 }
 
 static inline
-int32_t gpio_pin_set(uint32_t port, uint32_t pin)
+int32_t gpio_pin_set(uint32_t port, uint32_t pin, uint32_t safe)
 {
-    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
-    if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return 0;
+    }
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *_gpio_shm_set[port] |= (1UL << pin);
@@ -142,10 +154,13 @@ int32_t gpio_pin_set(uint32_t port, uint32_t pin)
 }
 
 static inline
-int32_t gpio_pin_clr(uint32_t port, uint32_t pin)
+int32_t gpio_pin_clr(uint32_t port, uint32_t pin, uint32_t safe)
 {
-    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
-    if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return 0;
+    }
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *_gpio_shm_clr[port] |= (1UL << pin);
@@ -154,16 +169,22 @@ int32_t gpio_pin_clr(uint32_t port, uint32_t pin)
 }
 
 static inline
-uint32_t gpio_port_get(uint32_t port)
+uint32_t gpio_port_get(uint32_t port, uint32_t safe)
 {
-    if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
+    }
     return *_gpio[port];
 }
 
 static inline
-int32_t gpio_port_set(uint32_t port, uint32_t mask)
+int32_t gpio_port_set(uint32_t port, uint32_t mask, uint32_t safe)
 {
-    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
+    }
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *_gpio_shm_set[port] = mask;
@@ -172,9 +193,12 @@ int32_t gpio_port_set(uint32_t port, uint32_t mask)
 }
 
 static inline
-int32_t gpio_port_clr(uint32_t port, uint32_t mask)
+int32_t gpio_port_clr(uint32_t port, uint32_t mask, uint32_t safe)
 {
-    if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
+    }
     _gpio_port_setup(port);
     _gpio_spin_lock();
     *_gpio_shm_clr[port] = mask;
@@ -183,7 +207,7 @@ int32_t gpio_port_clr(uint32_t port, uint32_t mask)
 }
 
 static inline
-uint32_t* gpio_all_get()
+uint32_t* gpio_all_get(uint32_t safe)
 {
     uint32_t port;
     for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_buf[port] = *_gpio[port];
@@ -191,12 +215,15 @@ uint32_t* gpio_all_get()
 }
 
 static inline
-int32_t gpio_all_set(uint32_t* mask)
+int32_t gpio_all_set(uint32_t* mask, uint32_t safe)
 {
     uint32_t port;
-    for ( port = GPIO_PORTS_MAX_CNT; port--; )
+    if ( safe )
     {
-        if ( mask[port] ) _gpio_port_setup(port);
+        for ( port = GPIO_PORTS_MAX_CNT; port--; )
+        {
+            if ( mask[port] ) _gpio_port_setup(port);
+        }
     }
     _gpio_spin_lock();
     for ( port = GPIO_PORTS_MAX_CNT; port--; )
@@ -208,12 +235,15 @@ int32_t gpio_all_set(uint32_t* mask)
 }
 
 static inline
-int32_t gpio_all_clr(uint32_t* mask)
+int32_t gpio_all_clr(uint32_t* mask, uint32_t safe)
 {
     uint32_t port;
-    for ( port = GPIO_PORTS_MAX_CNT; port--; )
+    if ( safe )
     {
-        if ( mask[port] ) _gpio_port_setup(port);
+        for ( port = GPIO_PORTS_MAX_CNT; port--; )
+        {
+            if ( mask[port] ) _gpio_port_setup(port);
+        }
     }
     _gpio_spin_lock();
     for ( port = GPIO_PORTS_MAX_CNT; port--; )
@@ -225,11 +255,14 @@ int32_t gpio_all_clr(uint32_t* mask)
 }
 
 static inline
-int32_t gpio_data_set(uint32_t name, uint32_t value)
+int32_t gpio_data_set(uint32_t name, uint32_t value, uint32_t safe)
 {
-    if ( name >= GPIO_DATA_CNT ) return -1;
-    if ( name == GPIO_ARISC_LOCK ) return -2;
-    if ( name == GPIO_PORTS_CNT && (value >= GPIO_PORTS_MAX_CNT) ) return -3;
+    if ( safe )
+    {
+        if ( name >= GPIO_DATA_CNT ) return -1;
+        if ( name == GPIO_ARISC_LOCK ) return -2;
+        if ( name == GPIO_PORTS_CNT && (value >= GPIO_PORTS_MAX_CNT) ) return -3;
+    }
     _gpio_spin_lock();
     *_gpiod[name] = value;
     _gpio_spin_unlock();
@@ -237,9 +270,12 @@ int32_t gpio_data_set(uint32_t name, uint32_t value)
 }
 
 static inline
-uint32_t gpio_data_get(uint32_t name)
+uint32_t gpio_data_get(uint32_t name, uint32_t safe)
 {
-    if ( name >= GPIO_DATA_CNT ) return 0;
+    if ( safe )
+    {
+        if ( name >= GPIO_DATA_CNT ) return 0;
+    }
     _gpio_spin_lock();
     uint32_t value = *_gpiod[name];
     _gpio_spin_unlock();
@@ -276,12 +312,15 @@ void _pg_spin_unlock()
 }
 
 static inline
-int32_t pg_data_set(uint32_t name, uint32_t value)
+int32_t pg_data_set(uint32_t name, uint32_t value, uint32_t safe)
 {
-    if ( name >= PG_DATA_CNT ) return -1;
-    if ( name == PG_ARISC_LOCK ) return -2;
-    if ( name == PG_TIMER_FREQ ) return -3;
-    if ( name == PG_CH_CNT && value >= PG_CH_MAX_CNT ) return -4;
+    if ( safe )
+    {
+        if ( name >= PG_DATA_CNT ) return -1;
+        if ( name == PG_ARISC_LOCK ) return -2;
+        if ( name == PG_TIMER_FREQ ) return -3;
+        if ( name == PG_CH_CNT && value >= PG_CH_MAX_CNT ) return -4;
+    }
     _pg_spin_lock();
     *_pgd[name] = value;
     _pg_spin_unlock();
@@ -289,9 +328,12 @@ int32_t pg_data_set(uint32_t name, uint32_t value)
 }
 
 static inline
-uint32_t pg_data_get(uint32_t name)
+uint32_t pg_data_get(uint32_t name, uint32_t safe)
 {
-    if ( name >= PG_DATA_CNT ) return 0;
+    if ( safe )
+    {
+        if ( name >= PG_DATA_CNT ) return 0;
+    }
     _pg_spin_lock();
     uint32_t value = *_pgd[name];
     _pg_spin_unlock();
@@ -299,10 +341,13 @@ uint32_t pg_data_get(uint32_t name)
 }
 
 static inline
-int32_t pg_ch_data_set(uint32_t c, uint32_t name, uint32_t value)
+int32_t pg_ch_data_set(uint32_t c, uint32_t name, uint32_t value, uint32_t safe)
 {
-    if ( c >= PG_CH_MAX_CNT ) return -1;
-    if ( name >= PG_PARAM_CNT ) return -2;
+    if ( safe )
+    {
+        if ( c >= PG_CH_MAX_CNT ) return -1;
+        if ( name >= PG_PARAM_CNT ) return -2;
+    }
     _pg_spin_lock();
     *_pgc[c][name] = value;
     _pg_spin_unlock();
@@ -310,10 +355,13 @@ int32_t pg_ch_data_set(uint32_t c, uint32_t name, uint32_t value)
 }
 
 static inline
-uint32_t pg_ch_data_get(uint32_t c, uint32_t name)
+uint32_t pg_ch_data_get(uint32_t c, uint32_t name, uint32_t safe)
 {
-    if ( c >= PG_CH_MAX_CNT ) return 0;
-    if ( name >= PG_PARAM_CNT ) return 0;
+    if ( safe )
+    {
+        if ( c >= PG_CH_MAX_CNT ) return 0;
+        if ( name >= PG_PARAM_CNT ) return 0;
+    }
     _pg_spin_lock();
     uint32_t value = *_pgc[c][name];
     _pg_spin_unlock();
@@ -338,13 +386,16 @@ void _stepgen_ch_setup(uint32_t c)
 }
 
 static inline
-int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin, uint32_t invert)
+int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin, uint32_t invert, uint32_t safe)
 {
-    if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
-    if ( type >= 2 ) return -2;
-    if ( port >= GPIO_PORTS_MAX_CNT ) return -3;
-    if ( pin >= GPIO_PINS_MAX_CNT ) return -4;
-    _stepgen_ch_setup(c);
+    if ( safe )
+    {
+        if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
+        if ( type >= 2 ) return -2;
+        if ( port >= GPIO_PORTS_MAX_CNT ) return -3;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return -4;
+        _stepgen_ch_setup(c);
+    }
 
     _sgc[c].inv[type] = invert ? 1UL << pin : 0;
 
@@ -365,20 +416,23 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
         *_pgc[c][PG_TASK_TOGGLES] = 0;
         _pg_spin_unlock();
 
-        gpio_pin_setup_for_output(port, pin);
-        if ( invert ) gpio_pin_set(port, pin);
-        else gpio_pin_clr(port, pin);
+        gpio_pin_setup_for_output(port, pin, safe);
+        if ( invert ) gpio_pin_set(port, pin, safe);
+        else gpio_pin_clr(port, pin, safe);
     }
 
     return 0;
 }
 
 static inline
-int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1)
+int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1, uint32_t safe)
 {
-    if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
-    if ( type >= 2 ) return -2;
-    _stepgen_ch_setup(c);
+    if ( safe )
+    {
+        if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
+        if ( type >= 2 ) return -2;
+        _stepgen_ch_setup(c);
+    }
 
     if ( t0 != _sgc[c].t0[type] || t1 != _sgc[c].t1[type] )
     {
@@ -399,11 +453,14 @@ int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1)
 }
 
 static inline
-int32_t stepgen_task_add(uint8_t c, int32_t pulses)
+int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
 {
-    if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
-    if ( !pulses ) return -2;
-    _stepgen_ch_setup(c);
+    if ( safe )
+    {
+        if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
+        if ( !pulses ) return -2;
+        _stepgen_ch_setup(c);
+    }
 
     uint32_t s = _sgc[c].pg_ch[STEP];
     uint32_t d = _sgc[c].pg_ch[DIR];
@@ -463,16 +520,22 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses)
 }
 
 static inline
-int32_t stepgen_pos_get(uint32_t c)
+int32_t stepgen_pos_get(uint32_t c, uint32_t safe)
 {
-    if ( c >= STEPGEN_CH_MAX_CNT ) return 0;
+    if ( safe )
+    {
+        if ( c >= STEPGEN_CH_MAX_CNT ) return 0;
+    }
     return _sgc[c].pos;
 }
 
 static inline
-int32_t stepgen_pos_set(uint32_t c, int32_t pos)
+int32_t stepgen_pos_set(uint32_t c, int32_t pos, uint32_t safe)
 {
-    if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
+    if ( safe )
+    {
+        if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
+    }
     _sgc[c].pos = pos;
     return 0;
 }
@@ -727,42 +790,42 @@ int32_t parse_and_exec(const char *str)
 
     if ( !reg_match(str, "gpio_pin_setup_for_output *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (gpio_pin_setup_for_output(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_pin_setup_for_output(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_setup_for_input *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (gpio_pin_setup_for_input(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_pin_setup_for_input(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (gpio_pin_set(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_pin_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_clr *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (gpio_pin_clr(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_pin_clr(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_get *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%u\n", gpio_pin_get(arg[0], arg[1]));
+        printf("%u\n", gpio_pin_get(arg[0], arg[1], 1));
         return 0;
     }
     if ( !reg_match(str, "gpio_port_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (gpio_port_set(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_port_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_port_clr *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (gpio_port_clr(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_port_clr(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_port_get *\\("UINT"\\)", &arg[0], 1) )
     {
-        uint32_t s = gpio_port_get(arg[0]);
+        uint32_t s = gpio_port_get(arg[0], 1);
         uint32_t b = 32;
         printf("%u, 0x%X, 0b", s, s);
         for ( ; b--; ) printf("%u", (s & (1U << b) ? 1 : 0));
@@ -773,19 +836,19 @@ int32_t parse_and_exec(const char *str)
     {
         uint32_t port;
         for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_buf[port] = arg[port];
-        printf("%s\n", (gpio_all_set(&_gpio_buf[0])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_all_set(&_gpio_buf[0], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_all_clr *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
     {
         uint32_t port;
         for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_buf[port] = arg[port];
-        printf("%s\n", (gpio_all_clr(&_gpio_buf[0])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_all_clr(&_gpio_buf[0], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_all_get *\\(\\)", &arg[0], 0) )
     {
-        uint32_t* ports = gpio_all_get();
+        uint32_t* ports = gpio_all_get(1);
         uint32_t b, port, s;
         for ( port = 0; port < GPIO_PORTS_MAX_CNT; port++ )
         {
@@ -796,15 +859,14 @@ int32_t parse_and_exec(const char *str)
         }
         return 0;
     }
-
     if ( !reg_match(str, "gpio_data_get *\\("UINT"\\)", &arg[0], 1) )
     {
-        printf("%u\n", gpio_data_get(arg[0]));
+        printf("%u\n", gpio_data_get(arg[0], 1));
         return 0;
     }
     if ( !reg_match(str, "gpio_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (gpio_data_set(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (gpio_data_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
 
@@ -812,27 +874,27 @@ int32_t parse_and_exec(const char *str)
 
     if ( !reg_match(str, "stepgen_pin_setup *\\("UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 5) )
     {
-        printf("%s\n", (stepgen_pin_setup(arg[0], arg[1], arg[2], arg[3], arg[4])) ? "ERROR" : "OK");
+        printf("%s\n", (stepgen_pin_setup(arg[0], arg[1], arg[2], arg[3], arg[4], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "stepgen_task_add *\\("UINT","INT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (stepgen_task_add(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (stepgen_task_add(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "stepgen_time_setup *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
     {
-        printf("%s\n", (stepgen_time_setup(arg[0], arg[1], arg[2], arg[3])) ? "ERROR" : "OK");
+        printf("%s\n", (stepgen_time_setup(arg[0], arg[1], arg[2], arg[3], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "stepgen_pos_get *\\("UINT"\\)", &arg[0], 1) )
     {
-        printf("%i\n", stepgen_pos_get(arg[0]));
+        printf("%i\n", stepgen_pos_get(arg[0], 1));
         return 0;
     }
     if ( !reg_match(str, "stepgen_pos_set *\\("UINT","INT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (stepgen_pos_set(arg[0], (int32_t)arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (stepgen_pos_set(arg[0], (int32_t)arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
 
@@ -840,22 +902,22 @@ int32_t parse_and_exec(const char *str)
 
     if ( !reg_match(str, "pg_data_get *\\("UINT"\\)", &arg[0], 1) )
     {
-        printf("%u\n", pg_data_get(arg[0]));
+        printf("%u\n", pg_data_get(arg[0], 1));
         return 0;
     }
     if ( !reg_match(str, "pg_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (pg_data_set(arg[0], arg[1])) ? "ERROR" : "OK");
+        printf("%s\n", (pg_data_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%u\n", pg_ch_data_get(arg[0], arg[1]));
+        printf("%u\n", pg_ch_data_get(arg[0], arg[1], 1));
         return 0;
     }
     if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
     {
-        printf("%s\n", (pg_ch_data_set(arg[0], arg[1], arg[2])) ? "ERROR" : "OK");
+        printf("%s\n", (pg_ch_data_set(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
         return 0;
     }
 
