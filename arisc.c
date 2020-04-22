@@ -771,16 +771,18 @@ int32_t parse_and_exec(const char *str)
     }
     if ( !reg_match(str, "gpio_all_set *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
     {
-        printf("%s\n", (gpio_all_set(&arg[0])) ? "ERROR" : "OK");
+        uint32_t port;
+        for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_state[port] = arg[port];
+        printf("%s\n", (gpio_all_set(&_gpio_state[0])) ? "ERROR" : "OK");
         return 0;
     }
-
     if ( !reg_match(str, "gpio_all_clr *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
     {
-        printf("%s\n", (gpio_all_clr(&arg[0])) ? "ERROR" : "OK");
+        uint32_t port;
+        for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_state[port] = arg[port];
+        printf("%s\n", (gpio_all_clr(&_gpio_state[0])) ? "ERROR" : "OK");
         return 0;
     }
-
     if ( !reg_match(str, "gpio_all_get *\\(\\)", &arg[0], 0) )
     {
         uint32_t* ports = gpio_all_get();
