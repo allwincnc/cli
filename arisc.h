@@ -61,13 +61,13 @@ enum { PA, PB, PC, PD, PE, PF, PG, PL };
 enum { LOW, HIGH };
 
 #define GPIO_PIN_SET(PORT,PIN_MASK) \
-    *gpio[PORT] |= PIN_MASK
+    *_gpio[PORT] |= PIN_MASK
 
 #define GPIO_PIN_CLR(PORT,PIN_MASK_NOT) \
-    *gpio[PORT] &= PIN_MASK_NOT
+    *_gpio[PORT] &= PIN_MASK_NOT
 
 #define GPIO_PIN_GET(PORT,PIN_MASK) \
-    (*gpio[PORT] & PIN_MASK)
+    (*_gpio[PORT] & PIN_MASK)
 
 
 
