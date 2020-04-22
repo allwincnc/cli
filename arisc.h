@@ -5,7 +5,7 @@
 
 
 
-#define DEBUG 0
+#define DEBUG 1
 
 
 
