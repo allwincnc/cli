@@ -27,7 +27,7 @@ volatile uint32_t * _gpio_spinlock = 0;
 volatile uint32_t * _pg_spinlock = 0;
 #endif
 
-uint32_t _gpio_state[GPIO_PORTS_MAX_CNT] = {0};
+uint32_t _gpio_buf[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio_shm_set[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _gpio_shm_clr[GPIO_PORTS_MAX_CNT] = {0};
@@ -186,22 +186,22 @@ static inline
 uint32_t* gpio_all_get()
 {
     uint32_t port;
-    for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_state[port] = *_gpio[port];
-    return (uint32_t*) &_gpio_state[0];
+    for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_buf[port] = *_gpio[port];
+    return (uint32_t*) &_gpio_buf[0];
 }
 
 static inline
 int32_t gpio_all_set(uint32_t* mask)
 {
-    uint32_t port, *msk;
-    for ( port = 0, msk = mask; port < GPIO_PORTS_MAX_CNT; msk++ )
+    uint32_t port;
+    for ( port = GPIO_PORTS_MAX_CNT; port--; )
     {
-        if ( *msk ) _gpio_port_setup(port);
+        if ( mask[port] ) _gpio_port_setup(port);
     }
     _gpio_spin_lock();
-    for ( port = 0, msk = mask; port < GPIO_PORTS_MAX_CNT; msk++ )
+    for ( port = GPIO_PORTS_MAX_CNT; port--; )
     {
-        *_gpio_shm_set[port] = *msk;
+        *_gpio_shm_set[port] = mask[port];
     }
     _gpio_spin_unlock();
     return 0;
@@ -210,15 +210,15 @@ int32_t gpio_all_set(uint32_t* mask)
 static inline
 int32_t gpio_all_clr(uint32_t* mask)
 {
-    uint32_t port, *msk;
-    for ( port = 0, msk = mask; port < GPIO_PORTS_MAX_CNT; msk++ )
+    uint32_t port;
+    for ( port = GPIO_PORTS_MAX_CNT; port--; )
     {
-        if ( *msk ) _gpio_port_setup(port);
+        if ( mask[port] ) _gpio_port_setup(port);
     }
     _gpio_spin_lock();
-    for ( port = 0, msk = mask; port < GPIO_PORTS_MAX_CNT; msk++ )
+    for ( port = GPIO_PORTS_MAX_CNT; port--; )
     {
-        *_gpio_shm_clr[port] = *msk;
+        *_gpio_shm_clr[port] = mask[port];
     }
     _gpio_spin_unlock();
     return 0;
@@ -772,15 +772,15 @@ int32_t parse_and_exec(const char *str)
     if ( !reg_match(str, "gpio_all_set *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
     {
         uint32_t port;
-        for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_state[port] = arg[port];
-        printf("%s\n", (gpio_all_set(&_gpio_state[0])) ? "ERROR" : "OK");
+        for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_buf[port] = arg[port];
+        printf("%s\n", (gpio_all_set(&_gpio_buf[0])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_all_clr *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 8) )
     {
         uint32_t port;
-        for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_state[port] = arg[port];
-        printf("%s\n", (gpio_all_clr(&_gpio_state[0])) ? "ERROR" : "OK");
+        for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_buf[port] = arg[port];
+        printf("%s\n", (gpio_all_clr(&_gpio_buf[0])) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_all_get *\\(\\)", &arg[0], 0) )
