@@ -24,6 +24,8 @@
 #define SPINLOCK_SYSTATUS_REG   (SPINLOCK_BASE + 0x0000)
 #define SPINLOCK_STATUS_REG     (SPINLOCK_BASE + 0x0010)
 #define SPINLOCK_LOCK_REG(N)    (SPINLOCK_BASE + 0x0100 + (N)*0x4)
+#define SPINLOCK_ID             (SPINLOCK_CNT - 1)
+#define SPINLOCK_MASK           (1UL << SPINLOCK_ID)
 
 
 
@@ -35,42 +37,30 @@
 #define GPIO_PORTS_MAX_CNT      8
 #define GPIO_PINS_MAX_CNT       24
 
-enum
-{
-    GPIO_USED,
-    GPIO_ARM_LOCK,
-    GPIO_ARISC_LOCK,
-    GPIO_PORTS_CNT,
-    GPIO_DATA_CNT
-};
-
-#define GPIO_SPINLOCK_ID        (SPINLOCK_CNT - 1)
-#define GPIO_SPINLOCK_MASK      (1UL << GPIO_SPINLOCK_ID)
-
-#define GPIO_SHM_BASE           (ARISC_SHM_BASE)
-#define GPIO_SHM_SET_BASE       (GPIO_SHM_BASE     + 0)
-#define GPIO_SHM_CLR_BASE       (GPIO_SHM_SET_BASE + GPIO_PORTS_MAX_CNT*4)
-#define GPIO_SHM_OUT_BASE       (GPIO_SHM_CLR_BASE + GPIO_PORTS_MAX_CNT*4)
-#define GPIO_SHM_INP_BASE       (GPIO_SHM_OUT_BASE + GPIO_PORTS_MAX_CNT*4)
-#define GPIO_SHM_DATA_BASE      (GPIO_SHM_INP_BASE + GPIO_PORTS_MAX_CNT*4)
-#define GPIO_SHM_SIZE           (GPIO_SHM_DATA_BASE + GPIO_DATA_CNT*4 - GPIO_SHM_BASE)
-
 enum { PA, PB, PC, PD, PE, PF, PG, PL };
 enum { LOW, HIGH };
 
 #define GPIO_PIN_SET(PORT,PIN_MASK) \
-    *_gpio[PORT] |= PIN_MASK
+    _GPIO[PORT]->data |= PIN_MASK
 
 #define GPIO_PIN_CLR(PORT,PIN_MASK_NOT) \
-    *_gpio[PORT] &= PIN_MASK_NOT
+    _GPIO[PORT]->data &= PIN_MASK_NOT
 
 #define GPIO_PIN_GET(PORT,PIN_MASK) \
-    (*_gpio[PORT] & PIN_MASK)
+    (_GPIO[PORT]->data & PIN_MASK)
+
+typedef struct
+{
+    uint32_t config[4];
+    uint32_t data;
+    uint32_t drive[2];
+    uint32_t pull[2];
+} _GPIO_PORT_REG_t;
 
 
 
 
-#define PG_CH_MAX_CNT 16
+#define PG_CH_MAX_CNT 32
 
 enum
 {
@@ -88,18 +78,13 @@ enum
 enum
 {
     PG_USED,
-    PG_ARM_LOCK,
-    PG_ARISC_LOCK,
     PG_TIMER_FREQ,
     PG_TIMER_TICK,
     PG_CH_CNT,
     PG_DATA_CNT
 };
 
-#define PG_SPINLOCK_ID      (SPINLOCK_CNT - 2)
-#define PG_SPINLOCK_MASK    (1UL << PG_SPINLOCK_ID)
-
-#define PG_SHM_BASE         (ARISC_SHM_BASE + GPIO_SHM_SIZE)
+#define PG_SHM_BASE         (ARISC_SHM_BASE)
 #define PG_SHM_CH_BASE      (PG_SHM_BASE)
 #define PG_SHM_DATA_BASE    (PG_SHM_CH_BASE + PG_CH_MAX_CNT*PG_PARAM_CNT*4)
 #define PG_SHM_SIZE         (PG_SHM_DATA_BASE + PG_DATA_CNT*4)
@@ -119,7 +104,7 @@ typedef struct {
 
 enum { STEP, DIR };
 
-#define STEPGEN_CH_MAX_CNT 8
+#define STEPGEN_CH_MAX_CNT 16
 
 
 

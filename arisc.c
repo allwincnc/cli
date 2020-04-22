@@ -17,17 +17,10 @@ static char *app_name = 0;
 static uint32_t *_shm_vrt_addr, *_gpio_vrt_addr, *_r_gpio_vrt_addr;
 
 static uint32_t *_spinlock_vrt_addr;
-volatile uint32_t * _spinlock_status = 0;
-volatile uint32_t * _gpio_spinlock = 0;
-volatile uint32_t * _pg_spinlock = 0;
+volatile uint32_t * _spinlock = 0;
 
-uint32_t _gpio_buf[GPIO_PORTS_MAX_CNT] = {0};
-volatile uint32_t * _gpio[GPIO_PORTS_MAX_CNT] = {0};
-volatile uint32_t * _gpio_shm_set[GPIO_PORTS_MAX_CNT] = {0};
-volatile uint32_t * _gpio_shm_clr[GPIO_PORTS_MAX_CNT] = {0};
-volatile uint32_t * _gpio_shm_out[GPIO_PORTS_MAX_CNT] = {0};
-volatile uint32_t * _gpio_shm_inp[GPIO_PORTS_MAX_CNT] = {0};
-volatile uint32_t * _gpiod[GPIO_PORTS_MAX_CNT] = {0};
+volatile _GPIO_PORT_REG_t *_GPIO[GPIO_PORTS_MAX_CNT] = {0};
+static uint32_t _gpio_buf[GPIO_PORTS_MAX_CNT] = {0};
 
 volatile uint32_t * _pgc[PG_CH_MAX_CNT][PG_PARAM_CNT] = {0};
 volatile uint32_t * _pgd[PG_DATA_CNT] = {0};
@@ -40,41 +33,15 @@ volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {d,d,d,d,d,d,d,d};
 
 
 static inline
-void _gpio_spin_lock()
+void _spin_lock()
 {
-    while ( *_gpio_spinlock );
+    while ( *_spinlock );
 }
 
 static inline
-void _gpio_spin_unlock()
+void _spin_unlock()
 {
-    *_gpio_spinlock = 0;
-}
-
-static inline
-void _gpio_port_setup(uint32_t port)
-{
-    if ( *_gpiod[GPIO_USED] && port < *_gpiod[GPIO_PORTS_CNT] ) return;
-
-    _gpio_spin_lock();
-
-    *_gpiod[GPIO_USED] = 1;
-
-    if ( port >= *_gpiod[GPIO_PORTS_CNT] )
-    {
-        uint32_t p = *_gpiod[GPIO_PORTS_CNT];
-        for ( ; p <= port; p++ )
-        {
-            *_gpio_shm_set[p] = 0;
-            *_gpio_shm_clr[p] = 0;
-            *_gpio_shm_out[p] = 0;
-            *_gpio_shm_inp[p] = 0;
-        }
-
-        *_gpiod[GPIO_PORTS_CNT] = port + 1;
-    }
-
-    _gpio_spin_unlock();
+    *_spinlock = 0;
 }
 
 static inline
@@ -85,10 +52,10 @@ int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin, uint32_t safe)
         if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
         if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     }
-    _gpio_port_setup(port);
-    _gpio_spin_lock();
-    *_gpio_shm_out[port] |= (1UL << pin);
-    _gpio_spin_unlock();
+    _spin_lock();
+    _GPIO[port]->config[pin/8] &= ~(0b1111 << (pin%8*4));
+    _GPIO[port]->config[pin/8] |=  (0b0001 << (pin%8*4));
+    _spin_unlock();
     return 0;
 }
 
@@ -100,10 +67,9 @@ int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin, uint32_t safe)
         if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
         if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     }
-    _gpio_port_setup(port);
-    _gpio_spin_lock();
-    *_gpio_shm_inp[port] |= (1UL << pin);
-    _gpio_spin_unlock();
+    _spin_lock();
+    _GPIO[port]->config[pin/8] &= ~(0b1111 << (pin%8*4));
+    _spin_unlock();
     return 0;
 }
 
@@ -115,7 +81,7 @@ uint32_t gpio_pin_get(uint32_t port, uint32_t pin, uint32_t safe)
         if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
         if ( pin >= GPIO_PINS_MAX_CNT ) return 0;
     }
-    return *_gpio[port] & (1UL << pin) ? HIGH : LOW;
+    return _GPIO[port]->data & (1UL << pin) ? HIGH : LOW;
 }
 
 static inline
@@ -126,10 +92,9 @@ int32_t gpio_pin_set(uint32_t port, uint32_t pin, uint32_t safe)
         if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
         if ( pin >= GPIO_PINS_MAX_CNT ) return 0;
     }
-    _gpio_port_setup(port);
-    _gpio_spin_lock();
-    *_gpio_shm_set[port] |= (1UL << pin);
-    _gpio_spin_unlock();
+    _spin_lock();
+    _GPIO[port]->data |= (1UL << pin);
+    _spin_unlock();
     return 0;
 }
 
@@ -141,10 +106,9 @@ int32_t gpio_pin_clr(uint32_t port, uint32_t pin, uint32_t safe)
         if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
         if ( pin >= GPIO_PINS_MAX_CNT ) return 0;
     }
-    _gpio_port_setup(port);
-    _gpio_spin_lock();
-    *_gpio_shm_clr[port] |= (1UL << pin);
-    _gpio_spin_unlock();
+    _spin_lock();
+    _GPIO[port]->data &= ~(1UL << pin);
+    _spin_unlock();
     return 0;
 }
 
@@ -155,7 +119,7 @@ uint32_t gpio_port_get(uint32_t port, uint32_t safe)
     {
         if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
     }
-    return *_gpio[port];
+    return _GPIO[port]->data;
 }
 
 static inline
@@ -165,10 +129,9 @@ int32_t gpio_port_set(uint32_t port, uint32_t mask, uint32_t safe)
     {
         if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
     }
-    _gpio_port_setup(port);
-    _gpio_spin_lock();
-    *_gpio_shm_set[port] = mask;
-    _gpio_spin_unlock();
+    _spin_lock();
+    _GPIO[port]->data |= mask;
+    _spin_unlock();
     return 0;
 }
 
@@ -179,10 +142,9 @@ int32_t gpio_port_clr(uint32_t port, uint32_t mask, uint32_t safe)
     {
         if ( port >= GPIO_PORTS_MAX_CNT ) return 0;
     }
-    _gpio_port_setup(port);
-    _gpio_spin_lock();
-    *_gpio_shm_clr[port] = mask;
-    _gpio_spin_unlock();
+    _spin_lock();
+    _GPIO[port]->data &= ~mask;
+    _spin_unlock();
     return 0;
 }
 
@@ -190,7 +152,8 @@ static inline
 uint32_t* gpio_all_get(uint32_t safe)
 {
     uint32_t port;
-    for ( port = GPIO_PORTS_MAX_CNT; port--; ) _gpio_buf[port] = *_gpio[port];
+    for ( port = GPIO_PORTS_MAX_CNT; port--; )
+        _gpio_buf[port] = _GPIO[port]->data;
     return (uint32_t*) &_gpio_buf[0];
 }
 
@@ -198,19 +161,12 @@ static inline
 int32_t gpio_all_set(uint32_t* mask, uint32_t safe)
 {
     uint32_t port;
-    if ( safe )
-    {
-        for ( port = GPIO_PORTS_MAX_CNT; port--; )
-        {
-            if ( mask[port] ) _gpio_port_setup(port);
-        }
-    }
-    _gpio_spin_lock();
+    _spin_lock();
     for ( port = GPIO_PORTS_MAX_CNT; port--; )
     {
-        *_gpio_shm_set[port] = mask[port];
+        _GPIO[port]->data |= mask[port];
     }
-    _gpio_spin_unlock();
+    _spin_unlock();
     return 0;
 }
 
@@ -218,64 +174,17 @@ static inline
 int32_t gpio_all_clr(uint32_t* mask, uint32_t safe)
 {
     uint32_t port;
-    if ( safe )
-    {
-        for ( port = GPIO_PORTS_MAX_CNT; port--; )
-        {
-            if ( mask[port] ) _gpio_port_setup(port);
-        }
-    }
-    _gpio_spin_lock();
+    _spin_lock();
     for ( port = GPIO_PORTS_MAX_CNT; port--; )
     {
-        *_gpio_shm_clr[port] = mask[port];
+        _GPIO[port]->data &= ~mask[port];
     }
-    _gpio_spin_unlock();
+    _spin_unlock();
     return 0;
 }
 
-static inline
-int32_t gpio_data_set(uint32_t name, uint32_t value, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( name >= GPIO_DATA_CNT ) return -1;
-        if ( name == GPIO_ARISC_LOCK ) return -2;
-        if ( name == GPIO_PORTS_CNT && (value >= GPIO_PORTS_MAX_CNT) ) return -3;
-    }
-    _gpio_spin_lock();
-    *_gpiod[name] = value;
-    _gpio_spin_unlock();
-    return 0;
-}
-
-static inline
-uint32_t gpio_data_get(uint32_t name, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( name >= GPIO_DATA_CNT ) return 0;
-    }
-    _gpio_spin_lock();
-    uint32_t value = *_gpiod[name];
-    _gpio_spin_unlock();
-    return value;
-}
 
 
-
-
-static inline
-void _pg_spin_lock()
-{
-    while ( *_pg_spinlock );
-}
-
-static inline
-void _pg_spin_unlock()
-{
-    *_pg_spinlock = 0;
-}
 
 static inline
 int32_t pg_data_set(uint32_t name, uint32_t value, uint32_t safe)
@@ -283,13 +192,12 @@ int32_t pg_data_set(uint32_t name, uint32_t value, uint32_t safe)
     if ( safe )
     {
         if ( name >= PG_DATA_CNT ) return -1;
-        if ( name == PG_ARISC_LOCK ) return -2;
         if ( name == PG_TIMER_FREQ ) return -3;
         if ( name == PG_CH_CNT && value >= PG_CH_MAX_CNT ) return -4;
     }
-    _pg_spin_lock();
+    _spin_lock();
     *_pgd[name] = value;
-    _pg_spin_unlock();
+    _spin_unlock();
     return 0;
 }
 
@@ -300,9 +208,9 @@ uint32_t pg_data_get(uint32_t name, uint32_t safe)
     {
         if ( name >= PG_DATA_CNT ) return 0;
     }
-    _pg_spin_lock();
+    _spin_lock();
     uint32_t value = *_pgd[name];
-    _pg_spin_unlock();
+    _spin_unlock();
     return value;
 }
 
@@ -314,9 +222,9 @@ int32_t pg_ch_data_set(uint32_t c, uint32_t name, uint32_t value, uint32_t safe)
         if ( c >= PG_CH_MAX_CNT ) return -1;
         if ( name >= PG_PARAM_CNT ) return -2;
     }
-    _pg_spin_lock();
+    _spin_lock();
     *_pgc[c][name] = value;
-    _pg_spin_unlock();
+    _spin_unlock();
     return 0;
 }
 
@@ -328,9 +236,9 @@ uint32_t pg_ch_data_get(uint32_t c, uint32_t name, uint32_t safe)
         if ( c >= PG_CH_MAX_CNT ) return 0;
         if ( name >= PG_PARAM_CNT ) return 0;
     }
-    _pg_spin_lock();
+    _spin_lock();
     uint32_t value = *_pgc[c][name];
-    _pg_spin_unlock();
+    _spin_unlock();
     return value;
 }
 
@@ -345,10 +253,10 @@ void _stepgen_ch_setup(uint32_t c)
     uint32_t pg_ch_cnt = 1 + _sgc[c].pg_ch[DIR];
     if ( pg_ch_cnt < *_pgd[PG_CH_CNT] ) pg_ch_cnt = *_pgd[PG_CH_CNT];
 
-    _pg_spin_lock();
+    _spin_lock();
     *_pgd[PG_USED] = 1;
     *_pgd[PG_CH_CNT] = pg_ch_cnt;
-    _pg_spin_unlock();
+    _spin_unlock();
 }
 
 static inline
@@ -375,12 +283,12 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
         mskn = ~msk;
         c = _sgc[c].pg_ch[type];
 
-        _pg_spin_lock();
+        _spin_lock();
         *_pgc[c][PG_PORT] = port;
         *_pgc[c][PG_PIN_MSK] = msk;
         *_pgc[c][PG_PIN_MSKN] = mskn;
         *_pgc[c][PG_TASK_TOGGLES] = 0;
-        _pg_spin_unlock();
+        _spin_unlock();
 
         gpio_pin_setup_for_output(port, pin, safe);
         if ( invert ) gpio_pin_set(port, pin, safe);
@@ -409,10 +317,10 @@ int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1, 
         t1 = (uint32_t) ( (uint64_t)t1 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
         c = _sgc[c].pg_ch[type];
 
-        _pg_spin_lock();
+        _spin_lock();
         *_pgc[c][PG_TASK_T0] = t0;
         *_pgc[c][PG_TASK_T1] = t1;
-        _pg_spin_unlock();
+        _spin_unlock();
     }
 
     return 0;
@@ -440,7 +348,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     struct timespec t1, t2;
     clock_gettime(CLOCK_MONOTONIC, &t1);
 #endif
-    _pg_spin_lock();
+    _spin_lock();
 
     // change DIR?
     dir = _sgc[c].inv[DIR] ^ GPIO_PIN_GET(*_pgc[d][PG_PORT], *_pgc[d][PG_PIN_MSK]);
@@ -467,7 +375,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
             GPIO_PIN_SET(*_pgc[s][PG_PORT], *_pgc[s][PG_PIN_MSK]);
     }
 
-    _pg_spin_unlock();
+    _spin_unlock();
 #if DEBUG
     clock_gettime(CLOCK_MONOTONIC, &t2);
     printf("stepgen_task_add: lock time = %ld nsec\n", t2.tv_nsec - t1.tv_nsec);
@@ -519,20 +427,11 @@ void mem_init(void)
     if ( mem_fd  < 0 ) { printf("ERROR: can't open /dev/mem file\n"); return; }
 
     // mmap shmem
-    addr = ARISC_SHM_BASE & ~(4096 - 1);
-    off = ARISC_SHM_BASE & (4096 - 1);
-    _shm_vrt_addr = mmap(NULL, ARISC_SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
+    addr = PG_SHM_BASE & ~(4096 - 1);
+    off = PG_SHM_BASE & (4096 - 1);
+    _shm_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
-    for ( port = 0; port < GPIO_PORTS_MAX_CNT; port++ )
-    {
-        _gpio_shm_set[port] = _shm_vrt_addr + (off + port*4 + (GPIO_SHM_SET_BASE - GPIO_SHM_BASE))/4;
-        _gpio_shm_clr[port] = _shm_vrt_addr + (off + port*4 + (GPIO_SHM_CLR_BASE - GPIO_SHM_BASE))/4;
-        _gpio_shm_out[port] = _shm_vrt_addr + (off + port*4 + (GPIO_SHM_OUT_BASE - GPIO_SHM_BASE))/4;
-        _gpio_shm_inp[port] = _shm_vrt_addr + (off + port*4 + (GPIO_SHM_INP_BASE - GPIO_SHM_BASE))/4;
-    }
-    p = _shm_vrt_addr + (off + (GPIO_SHM_DATA_BASE - GPIO_SHM_BASE))/4;
-    for ( name = 0; name < GPIO_DATA_CNT; name++, p++ ) _gpiod[name] = p;
-    p = _shm_vrt_addr + (off + GPIO_SHM_SIZE)/4;
+    p = _shm_vrt_addr + off/4;
     for ( ch = 0; ch < PG_CH_MAX_CNT; ch++ )
         for ( name = 0; name < PG_PARAM_CNT; name++, p++ ) _pgc[ch][name] = p;
     for ( name = 0; name < PG_DATA_CNT; name++, p++ ) _pgd[name] = p;
@@ -542,9 +441,9 @@ void mem_init(void)
     off = GPIO_BASE & (4096 - 1);
     _gpio_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_gpio_vrt_addr == MAP_FAILED) { printf("ERROR: gpio mmap() failed\n"); return; }
-    for ( port = 0; port < (GPIO_PORTS_MAX_CNT - 1); port++ )
+    for ( port = PA; port <= PG; ++port )
     {
-        _gpio[port] = (uint32_t *) ( _gpio_vrt_addr + (off + port*GPIO_BANK_SIZE + 16)/4 );
+        _GPIO[port] = (_GPIO_PORT_REG_t *)(_gpio_vrt_addr + (off + port*0x24)/4);
     }
 
     // mmap r_gpio (PL)
@@ -552,19 +451,15 @@ void mem_init(void)
     off = GPIO_R_BASE & (4096 - 1);
     _r_gpio_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_r_gpio_vrt_addr == MAP_FAILED) { printf("ERROR: r_gpio mmap() failed\n"); return; }
-    _gpio[GPIO_PORTS_MAX_CNT - 1] = (uint32_t *) ( _r_gpio_vrt_addr + (off+16)/4 );
+    _GPIO[PL] = (_GPIO_PORT_REG_t *)(_gpio_vrt_addr + off/4);
 
     // mmap spinlock
     addr = SPINLOCK_BASE & ~(4096 - 1);
     off = SPINLOCK_BASE & (4096 - 1);
     _spinlock_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_spinlock_vrt_addr == MAP_FAILED) { printf("ERROR: r_gpio mmap() failed\n"); return; }
-    _spinlock_status = (uint32_t *)
-        ( _spinlock_vrt_addr + (off + (SPINLOCK_STATUS_REG - SPINLOCK_BASE))/4 );
-    _gpio_spinlock = (uint32_t *)
-        ( _spinlock_vrt_addr + (off + (SPINLOCK_LOCK_REG(GPIO_SPINLOCK_ID) - SPINLOCK_BASE))/4 );
-    _pg_spinlock = (uint32_t *)
-        ( _spinlock_vrt_addr + (off + (SPINLOCK_LOCK_REG(PG_SPINLOCK_ID) - SPINLOCK_BASE))/4 );
+    _spinlock = (uint32_t *)
+        ( _spinlock_vrt_addr + (off + (SPINLOCK_LOCK_REG(SPINLOCK_ID) - SPINLOCK_BASE))/4 );
 
     // no need to keep phy memory file open after mmap
     close(mem_fd);
@@ -572,7 +467,7 @@ void mem_init(void)
 
 void mem_deinit(void)
 {
-    munmap(_shm_vrt_addr, ARISC_SHM_SIZE);
+    munmap(_shm_vrt_addr, 4096);
     munmap(_gpio_vrt_addr, 4096);
     munmap(_r_gpio_vrt_addr, 4096);
     munmap(_spinlock_vrt_addr, 4096);
@@ -704,8 +599,6 @@ int32_t parse_and_exec(const char *str)
    *u32  gpio_all_get               () \n\
     i32  gpio_all_set               (mask, mask, .., mask) \n\
     i32  gpio_all_clr               (mask, mask, .., mask) \n\
-    u32  gpio_data_get              (name) \n\
-    i32  gpio_data_set              (name, value) \n\
 \n\
     i32  stepgen_pin_setup      (channel, type, port, pin, invert) \n\
     i32  stepgen_time_setup     (channel, type, t0, t1) \n\
@@ -815,16 +708,6 @@ int32_t parse_and_exec(const char *str)
             for ( b = 32; b--; ) printf("%u", (s & (1U << b) ? 1 : 0));
             printf(" (%u, 0x%X)\n", s, s);
         }
-        return 0;
-    }
-    if ( !reg_match(str, "gpio_data_get *\\("UINT"\\)", &arg[0], 1) )
-    {
-        printf("%u\n", gpio_data_get(arg[0], 1));
-        return 0;
-    }
-    if ( !reg_match(str, "gpio_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
-    {
-        printf("%s\n", (gpio_data_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
 
