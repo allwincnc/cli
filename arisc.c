@@ -184,7 +184,7 @@ int32_t gpio_port_clr(uint32_t port, uint32_t mask)
 static inline
 uint32_t* gpio_all_get()
 {
-    return (uint32_t*) &_gpio[0];
+    return (uint32_t*) _gpio[0];
 }
 
 static inline
