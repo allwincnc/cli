@@ -52,9 +52,10 @@ int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin, uint32_t safe)
         if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
         if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     }
+    uint32_t slot = pin/8, pos = pin%8*4;
     _spin_lock();
-    _GPIO[port]->config[pin/8] &= ~(0b1111 << (pin%8*4));
-    _GPIO[port]->config[pin/8] |=  (0b0001 << (pin%8*4));
+    _GPIO[port]->config[slot] &= ~(0b1111 << pos);
+    _GPIO[port]->config[slot] |=  (0b0001 << pos);
     _spin_unlock();
     return 0;
 }
@@ -67,8 +68,9 @@ int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin, uint32_t safe)
         if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
         if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     }
+    uint32_t slot = pin/8, pos = pin%8*4;
     _spin_lock();
-    _GPIO[port]->config[pin/8] &= ~(0b1111 << (pin%8*4));
+    _GPIO[port]->config[slot] &= ~(0b1111 << pos);
     _spin_unlock();
     return 0;
 }
