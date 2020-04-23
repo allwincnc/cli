@@ -382,10 +382,6 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     uint32_t t_old;
     uint32_t t_new = 2 * ((uint32_t)abs(pulses));
 
-#if DEBUG
-    struct timespec t1, t2;
-    clock_gettime(CLOCK_MONOTONIC, &t1);
-#endif
     _spin_lock();
 
     // change DIR?
@@ -414,10 +410,6 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     }
 
     _spin_unlock();
-#if DEBUG
-    clock_gettime(CLOCK_MONOTONIC, &t2);
-    printf("stepgen_task_add: lock time = %ld nsec\n", t2.tv_nsec - t1.tv_nsec);
-#endif
 
     _sgc[c].pos += pulses;
 
