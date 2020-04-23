@@ -262,6 +262,42 @@ void _stepgen_ch_setup(uint32_t c)
 }
 
 static inline
+void _stepgen_cleanup()
+{
+    uint32_t sgc, pgc, p, type, pgc_max = 0;
+
+    _spin_lock();
+
+    for ( sgc = STEPGEN_CH_MAX_CNT; sgc--; )
+    {
+        for ( type = 2; type--; )
+        {
+            pgc = _sgc[sgc].pg_ch[type];
+            if ( pgc >= PG_CH_MAX_CNT ) continue;
+            if ( pgc > pgc_max ) pgc_max = pgc;
+            // cleanup pulsgen channel data
+            for ( p = PG_PARAM_CNT; p--; ) *_pgc[pgc][p] = 0;
+            // cleanup stepgen channel data
+            _sgc[sgc].pg_ch[type] = 0;
+            _sgc[sgc].port[type] = 0;
+            _sgc[sgc].pin[type] = 0;
+            _sgc[sgc].inv[type] = 0;
+            _sgc[sgc].t0[type] = 0;
+            _sgc[sgc].t1[type] = 0;
+        }
+        _sgc[sgc].pos = 0;
+    }
+
+    if ( (pgc_max+1) >= *_pgd[PG_CH_CNT] )
+    {
+        *_pgd[PG_USED] = 0;
+        *_pgd[PG_CH_CNT] = 0;
+    }
+
+    _spin_unlock();
+}
+
+static inline
 int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin, uint32_t invert, uint32_t safe)
 {
     if ( safe )
