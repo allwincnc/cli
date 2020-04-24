@@ -56,13 +56,19 @@ typedef struct
 
 
 #define PG_CH_MAX_CNT 32
+#define PG_CH_SLOT_MAX_CNT 4
 
 enum
 {
+    PG_TASK_SLOT0,
+    PG_TASK_SLOT1,
+    PG_TASK_SLOT2,
+    PG_TASK_SLOT3,
+    PG_TASK_SLOT,
+
     PG_PORT,
     PG_PIN_MSK,
     PG_PIN_MSKN,
-    PG_TASK_TOGGLES,
     PG_TASK_T0,
     PG_TASK_T1,
     PG_TASK_TICK,
@@ -89,6 +95,7 @@ enum
 
 typedef struct {
     int32_t  pos;
+    int32_t  dir;
     uint32_t pg_ch[2];
     uint32_t port[2];
     uint32_t pin[2];
