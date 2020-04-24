@@ -23,7 +23,7 @@ static uint32_t _gpio_buf[GPIO_PORTS_MAX_CNT] = {0};
 volatile uint32_t * _pgc[PG_CH_MAX_CNT][PG_PARAM_CNT] = {0};
 volatile uint32_t * _pgd[PG_DATA_CNT] = {0};
 
-#define d {0,{99,99},{99,99},{99,99},{0,0},{0,0},{0,0}}
+#define d {0,0,{99,99},{99,99},{99,99},{0,0},{0,0},{0,0}}
 volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {d,d,d,d,d,d,d,d};
 #undef d
 
