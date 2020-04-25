@@ -20,12 +20,11 @@ volatile uint32_t * _spinlock = 0;
 volatile _GPIO_PORT_REG_t *_GPIO[GPIO_PORTS_MAX_CNT] = {0};
 static uint32_t _gpio_buf[GPIO_PORTS_MAX_CNT] = {0};
 
-volatile uint32_t * _pgc[PG_CH_MAX_CNT][PG_PARAM_CNT] = {0};
+volatile uint32_t * _pgs[PG_CH_MAX_CNT] = {0};
+volatile uint32_t * _pgc[PG_CH_MAX_CNT][PG_CH_SLOT_MAX_CNT][PG_CH_DATA_CNT] = {0};
 volatile uint32_t * _pgd[PG_DATA_CNT] = {0};
 
-#define d {0,0,{99,99},{99,99},{99,99},{0,0},{0,0},{0,0}}
-volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {d,d,d,d,d,d,d,d};
-#undef d
+volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {0};
 
 
 
@@ -215,29 +214,31 @@ uint32_t pg_data_get(uint32_t name, uint32_t safe)
 }
 
 static inline
-int32_t pg_ch_data_set(uint32_t c, uint32_t name, uint32_t value, uint32_t safe)
+int32_t pg_ch_data_set(uint32_t c, uint32_t s, uint32_t name, uint32_t value, uint32_t safe)
 {
     if ( safe )
     {
         if ( c >= PG_CH_MAX_CNT ) return -1;
-        if ( name >= PG_PARAM_CNT ) return -2;
+        if ( s >= PG_CH_SLOT_MAX_CNT ) return -2;
+        if ( name >= PG_CH_DATA_CNT ) return -3;
     }
     _spin_lock();
-    *_pgc[c][name] = value;
+    *_pgc[c][s][name] = value;
     _spin_unlock();
     return 0;
 }
 
 static inline
-uint32_t pg_ch_data_get(uint32_t c, uint32_t name, uint32_t safe)
+uint32_t pg_ch_data_get(uint32_t c, uint32_t s, uint32_t name, uint32_t safe)
 {
     if ( safe )
     {
         if ( c >= PG_CH_MAX_CNT ) return 0;
-        if ( name >= PG_PARAM_CNT ) return 0;
+        if ( s >= PG_CH_SLOT_MAX_CNT ) return -1;
+        if ( name >= PG_CH_DATA_CNT ) return -2;
     }
     _spin_lock();
-    uint32_t value = *_pgc[c][name];
+    uint32_t value = *_pgc[c][s][name];
     _spin_unlock();
     return value;
 }
@@ -245,55 +246,15 @@ uint32_t pg_ch_data_get(uint32_t c, uint32_t name, uint32_t safe)
 static inline
 void _stepgen_ch_setup(uint32_t c)
 {
-    if ( *_pgd[PG_USED] && _sgc[c].pg_ch[DIR] < *_pgd[PG_CH_CNT] ) return;
-
     _sgc[c].pos = 0;
-    _sgc[c].dir = 1;
-    _sgc[c].pg_ch[STEP] = 2*c;
-    _sgc[c].pg_ch[DIR] = 2*c + 1;
+    _sgc[c].dir = 0;
 
-    uint32_t pg_ch_cnt = 1 + _sgc[c].pg_ch[DIR];
+    uint32_t pg_ch_cnt = 1 + c;
     if ( pg_ch_cnt < *_pgd[PG_CH_CNT] ) pg_ch_cnt = *_pgd[PG_CH_CNT];
 
     _spin_lock();
     *_pgd[PG_USED] = 1;
     *_pgd[PG_CH_CNT] = pg_ch_cnt;
-    _spin_unlock();
-}
-
-static inline
-void _stepgen_cleanup()
-{
-    uint32_t sgc, pgc, p, type, pgc_max = 0;
-
-    _spin_lock();
-
-    for ( sgc = STEPGEN_CH_MAX_CNT; sgc--; )
-    {
-        for ( type = 2; type--; )
-        {
-            pgc = _sgc[sgc].pg_ch[type];
-            if ( pgc >= PG_CH_MAX_CNT ) continue;
-            if ( pgc > pgc_max ) pgc_max = pgc;
-            // cleanup pulsgen channel data
-            for ( p = PG_PARAM_CNT; p--; ) *_pgc[pgc][p] = 0;
-            // cleanup stepgen channel data
-            _sgc[sgc].pg_ch[type] = 0;
-            _sgc[sgc].port[type] = 0;
-            _sgc[sgc].pin[type] = 0;
-            _sgc[sgc].inv[type] = 0;
-            _sgc[sgc].t0[type] = 0;
-            _sgc[sgc].t1[type] = 0;
-        }
-        _sgc[sgc].pos = 0;
-    }
-
-    if ( (pgc_max+1) >= *_pgd[PG_CH_CNT] )
-    {
-        *_pgd[PG_USED] = 0;
-        *_pgd[PG_CH_CNT] = 0;
-    }
-
     _spin_unlock();
 }
 
@@ -309,28 +270,13 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
         _stepgen_ch_setup(c);
     }
 
-    _sgc[c].inv[type] = invert ? 1UL << pin : 0;
+    _sgc[c].port[type] = port;
+    _sgc[c].pin_msk[type] = 1UL << pin;
+    _sgc[c].pin_mskn[type] = ~(1UL << pin);
 
-    if ( port != _sgc[c].port[type] || pin != _sgc[c].pin[type] )
-    {
-        _sgc[c].port[type] = port;
-        _sgc[c].pin[type] = pin;
-
-        uint32_t msk, mskn;
-        msk = (1UL << pin);
-        mskn = ~msk;
-        c = _sgc[c].pg_ch[type];
-
-        _spin_lock();
-        *_pgc[c][PG_PORT] = port;
-        *_pgc[c][PG_PIN_MSK] = msk;
-        *_pgc[c][PG_PIN_MSKN] = mskn;
-        _spin_unlock();
-
-        gpio_pin_setup_for_output(port, pin, safe);
-        if ( invert ) gpio_pin_set(port, pin, safe);
-        else gpio_pin_clr(port, pin, safe);
-    }
+    gpio_pin_setup_for_output(port, pin, safe);
+    if ( invert ) gpio_pin_set(port, pin, safe);
+    else gpio_pin_clr(port, pin, safe);
 
     return 0;
 }
@@ -345,20 +291,8 @@ int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1, 
         _stepgen_ch_setup(c);
     }
 
-    if ( t0 != _sgc[c].t0[type] || t1 != _sgc[c].t1[type] )
-    {
-        _sgc[c].t0[type] = t0;
-        _sgc[c].t1[type] = t1;
-
-        t0 = (uint32_t) ( (uint64_t)t0 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
-        t1 = (uint32_t) ( (uint64_t)t1 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
-        c = _sgc[c].pg_ch[type];
-
-        _spin_lock();
-        *_pgc[c][PG_TASK_T0] = t0;
-        *_pgc[c][PG_TASK_T1] = t1;
-        _spin_unlock();
-    }
+    _sgc[c].t0[type] = (uint32_t) ( (uint64_t)t0 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
+    _sgc[c].t1[type] = (uint32_t) ( (uint64_t)t1 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
 
     return 0;
 }
@@ -373,42 +307,55 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
         _stepgen_ch_setup(c);
     }
 
-    uint32_t s = _sgc[c].pg_ch[STEP];
-    uint32_t d = _sgc[c].pg_ch[DIR];
-    uint32_t dir_new = (pulses > 0) ? 1 : -1;
-    uint32_t slot, i, t = 0;
+    uint32_t dir_new = (pulses > 0) ? 0 : 1;
+    uint32_t s, i;
 
     _spin_lock();
 
-    // is current STEP slot is busy?
-    slot = *_pgc[s][PG_TASK_SLOT];
-    if ( *_pgc[s][slot] )
+    s = *_pgs[c];
+
+    // is current slot busy?
+    if ( *_pgc[c][s][PG_TOGGLES] )
     {
-        // find a free STEP slot
+        // find a free slot
         i = PG_CH_SLOT_MAX_CNT - 1;
-        do slot = (slot + 1) & (PG_CH_SLOT_MAX_CNT - 1);
-        while ( *_pgc[s][slot] && i-- );
-        // no free STEP slots?
-        if ( *_pgc[s][slot] ) return -3;
-        // task timeout
-        t = *_pgc[s][ (slot - 1) & (PG_CH_SLOT_MAX_CNT - 1) ];
+        do s = (s + 1) & PG_CH_SLOT_MAX;
+        while ( *_pgc[c][s][PG_TOGGLES] && i-- );
+        // no free slots?
+        if ( *_pgc[c][s][PG_TOGGLES] ) return -3;
     }
 
-    // change a DIR?
+    // add DIR task
     if ( _sgc[c].dir != dir_new )
     {
-        *_pgc[d][PG_TASK_TICK] = *_pgd[PG_TIMER_TICK];
-        *_pgc[d][ *_pgc[d][PG_TASK_SLOT] ] = 1;
-        *_pgc[d][PG_TASK_TIMEOUT] = *_pgc[d][PG_TASK_T0] +
-            (t/2)*(*_pgc[s][PG_TASK_T0] + *_pgc[s][PG_TASK_T1]);
-        *_pgc[s][PG_TASK_TIMEOUT] = *_pgc[d][PG_TASK_TIMEOUT] + *_pgc[d][PG_TASK_T1];
-        _sgc[c].dir = dir_new;
-    }
-    else *_pgc[s][PG_TASK_TIMEOUT] = 0;
+        *_pgc[c][s][PG_PORT] = _sgc[c].port[DIR];
+        *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
+        *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_msk[DIR];
+        *_pgc[c][s][PG_TOGGLES] = 1;
+        *_pgc[c][s][PG_TIMEOUT] = _sgc[c].t0[DIR];
+        if ( _sgc[c].dir ) {
+            *_pgc[c][s][PG_T0] = _sgc[c].t0[DIR];
+            *_pgc[c][s][PG_T1] = _sgc[c].t1[DIR];
+        } else {
+            *_pgc[c][s][PG_T0] = _sgc[c].t1[DIR];
+            *_pgc[c][s][PG_T1] = _sgc[c].t0[DIR];
+        }
 
-    // setup STEPs to do
-    *_pgc[s][PG_TASK_TICK] = *_pgd[PG_TIMER_TICK];
-    *_pgc[s][slot] = 2 * ((uint32_t)abs(pulses));
+        _sgc[c].dir = dir_new;
+
+        // no free slots for STEP task?
+        s = (s + 1) & PG_CH_SLOT_MAX;
+        if ( *_pgc[c][s][PG_TOGGLES] ) { _spin_unlock(); return -4; }
+    }
+
+    // add STEP task
+    *_pgc[c][s][PG_PORT] = _sgc[c].port[STEP];
+    *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[STEP];
+    *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_msk[STEP];
+    *_pgc[c][s][PG_TOGGLES] = 2 * (uint32_t)abs(pulses);
+    *_pgc[c][s][PG_TIMEOUT] = 0;
+    *_pgc[c][s][PG_T0] = _sgc[c].t0[STEP];
+    *_pgc[c][s][PG_T1] = _sgc[c].t1[STEP];
 
     _spin_unlock();
 
@@ -438,13 +385,29 @@ int32_t stepgen_pos_set(uint32_t c, int32_t pos, uint32_t safe)
     return 0;
 }
 
+static inline
+int32_t stepgen_cleanup()
+{
+    uint32_t *p, i;
+
+    _spin_lock();
+    for ( i = PG_CH_MAX_CNT, p = (uint32_t*)_pgs; i--; p++ ) *p = 0;
+    for ( i = PG_CH_MAX_CNT*PG_CH_SLOT_MAX_CNT*PG_CH_DATA_CNT, p = (uint32_t*)_pgc; i--; p++ ) *p = 0;
+    for ( i = PG_DATA_CNT, p = (uint32_t*)_pgd; i--; p++ ) *p = 0;
+    _spin_unlock();
+
+    for ( i = sizeof(_stepgen_ch_t)*STEPGEN_CH_MAX_CNT, p = (uint32_t*)_sgc; i--; p++ ) *p = 0;
+
+    return 0;
+}
+
 
 
 
 void mem_init(void)
 {
     int32_t mem_fd;
-    uint32_t addr, off, port, ch, name, *p;
+    uint32_t addr, off, port, ch, name, *p, s;
 
     // open physical memory file
     mem_fd = open("/dev/mem", O_RDWR|O_SYNC);
@@ -456,8 +419,12 @@ void mem_init(void)
     _shm_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
     p = _shm_vrt_addr + off/4;
-    for ( ch = 0; ch < PG_CH_MAX_CNT; ch++ )
-        for ( name = 0; name < PG_PARAM_CNT; name++, p++ ) _pgc[ch][name] = p;
+    for ( s = 0; s < PG_CH_MAX_CNT; s++, p++ ) _pgs[s] = p;
+    for ( ch = 0; ch < PG_CH_MAX_CNT; ch++ ) {
+        for ( s = 0; s < PG_CH_SLOT_MAX_CNT; s++ ) {
+            for ( name = 0; name < PG_CH_DATA_CNT; name++, p++ ) _pgc[ch][s][name] = p;
+        }
+    }
     for ( name = 0; name < PG_DATA_CNT; name++, p++ ) _pgd[name] = p;
 
     // mmap gpio
@@ -629,11 +596,12 @@ int32_t parse_and_exec(const char *str)
     i32  stepgen_task_add       (channel, pulses) \n\
     i32  stepgen_pos_get        (channel) \n\
     i32  stepgen_pos_set        (channel, position) \n\
+    i32  stepgen_cleanup        () \n\
 \n\
     u32  pg_data_get        (name) \n\
     i32  pg_data_set        (name, value) \n\
-    u32  pg_ch_data_get     (channel, name) \n\
-    i32  pg_ch_data_set     (channel, name, value) \n\
+    u32  pg_ch_data_get     (channel, slot, name) \n\
+    i32  pg_ch_data_set     (channel, slot, name, value) \n\
 \n\
   Legend: \n\
 \n\
@@ -647,6 +615,7 @@ int32_t parse_and_exec(const char *str)
     t0          pin state setup time in nanoseconds (u32)\n\
     t1          pin state hold time in nanoseconds (u32)\n\
     position    position value in pulses (i32)\n\
+    slot        pulsgen channel's fifo slot (0..%u)\n\
     name        data name (u32)\n\
     value       data value (u32)\n\
 \n\
@@ -656,6 +625,7 @@ int32_t parse_and_exec(const char *str)
             app_name, app_name, app_name,
             (GPIO_PORTS_MAX_CNT - 1),
             (GPIO_PINS_MAX_CNT - 1),
+            (PG_CH_SLOT_MAX_CNT - 1),
             app_name
         );
         return 0;
@@ -762,6 +732,11 @@ int32_t parse_and_exec(const char *str)
         printf("%s\n", (stepgen_pos_set(arg[0], (int32_t)arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
+    if ( !reg_match(str, "stepgen_cleanup *\\(\\)", &arg[0], 0) )
+    {
+        printf("%s\n", (stepgen_cleanup()) ? "ERROR" : "OK");
+        return 0;
+    }
 
     // --- PULSGEN ------
 
@@ -775,14 +750,14 @@ int32_t parse_and_exec(const char *str)
         printf("%s\n", (pg_data_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
-    if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 2) )
+    if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 3) )
     {
-        printf("%u\n", pg_ch_data_get(arg[0], arg[1], 1));
+        printf("%u\n", pg_ch_data_get(arg[0], arg[1], arg[2], 1));
         return 0;
     }
-    if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
+    if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT"\\)", &arg[0], 4) )
     {
-        printf("%s\n", (pg_ch_data_set(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
+        printf("%s\n", (pg_ch_data_set(arg[0], arg[1], arg[2], arg[3], 1)) ? "ERROR" : "OK");
         return 0;
     }
 

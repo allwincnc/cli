@@ -55,25 +55,21 @@ typedef struct
 
 
 
-#define PG_CH_MAX_CNT 32
-#define PG_CH_SLOT_MAX_CNT 4
+#define PG_CH_MAX_CNT       16
+#define PG_CH_SLOT_MAX_CNT  4
+#define PG_CH_SLOT_MAX      (PG_CH_SLOT_MAX_CNT - 1)
 
 enum
 {
-    PG_TASK_SLOT0,
-    PG_TASK_SLOT1,
-    PG_TASK_SLOT2,
-    PG_TASK_SLOT3,
-    PG_TASK_SLOT,
-
     PG_PORT,
     PG_PIN_MSK,
     PG_PIN_MSKN,
-    PG_TASK_T0,
-    PG_TASK_T1,
-    PG_TASK_TICK,
-    PG_TASK_TIMEOUT,
-    PG_PARAM_CNT
+    PG_TOGGLES,
+    PG_T0,
+    PG_T1,
+    PG_TICK,
+    PG_TIMEOUT,
+    PG_CH_DATA_CNT
 };
 
 enum
@@ -86,8 +82,9 @@ enum
 };
 
 #define PG_SHM_BASE         (ARISC_SHM_BASE)
-#define PG_SHM_CH_BASE      (PG_SHM_BASE)
-#define PG_SHM_DATA_BASE    (PG_SHM_CH_BASE + PG_CH_MAX_CNT*PG_PARAM_CNT*4)
+#define PG_SHM_CH_SLOT_BASE (PG_SHM_BASE)
+#define PG_SHM_CH_DATA_BASE (PG_SHM_CH_SLOT_BASE + PG_CH_MAX_CNT*4)
+#define PG_SHM_DATA_BASE    (PG_SHM_CH_DATA_BASE + PG_CH_MAX_CNT*PG_CH_DATA_CNT*PG_CH_SLOT_MAX_CNT*4)
 #define PG_SHM_SIZE         (PG_SHM_DATA_BASE + PG_DATA_CNT*4)
 
 
@@ -95,11 +92,10 @@ enum
 
 typedef struct {
     int32_t  pos;
-    int32_t  dir;
-    uint32_t pg_ch[2];
+    uint32_t dir;
     uint32_t port[2];
-    uint32_t pin[2];
-    uint32_t inv[2];
+    uint32_t pin_msk[2];
+    uint32_t pin_mskn[2];
     uint32_t t0[2];
     uint32_t t1[2];
 } _stepgen_ch_t;
