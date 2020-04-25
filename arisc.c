@@ -386,11 +386,12 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     {
         // find a free STEP slot
         i = PG_CH_SLOT_MAX_CNT - 1;
-        do { t += *_pgc[s][slot];
-             slot = (slot + 1) & (PG_CH_SLOT_MAX_CNT - 1);
-        } while ( *_pgc[s][slot] && i-- );
+        do slot = (slot + 1) & (PG_CH_SLOT_MAX_CNT - 1);
+        while ( *_pgc[s][slot] && i-- );
         // no free STEP slots?
         if ( *_pgc[s][slot] ) return -3;
+        // task timeout
+        t = *_pgc[s][ (slot - 1) & (PG_CH_SLOT_MAX_CNT - 1) ];
     }
 
     // change a DIR?
@@ -400,7 +401,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
         *_pgc[d][ *_pgc[d][PG_TASK_SLOT] ] = 1;
         *_pgc[d][PG_TASK_TIMEOUT] = *_pgc[d][PG_TASK_T0] +
             (t/2)*(*_pgc[s][PG_TASK_T0] + *_pgc[s][PG_TASK_T1]);
-        *_pgc[s][PG_TASK_TIMEOUT] = *_pgc[d][PG_TASK_T0] + *_pgc[d][PG_TASK_T1];
+        *_pgc[s][PG_TASK_TIMEOUT] = *_pgc[d][PG_TASK_TIMEOUT] + *_pgc[d][PG_TASK_T1];
         _sgc[c].dir = dir_new;
     }
     else *_pgc[s][PG_TASK_TIMEOUT] = 0;
