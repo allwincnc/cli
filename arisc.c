@@ -375,10 +375,8 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
 
     uint32_t s = _sgc[c].pg_ch[STEP];
     uint32_t d = _sgc[c].pg_ch[DIR];
-    uint32_t step_timeout = *_pgc[d][PG_TASK_T0] + *_pgc[d][PG_TASK_T1];
     uint32_t dir_new = (pulses > 0) ? 1 : -1;
-    uint32_t t_new = 2 * ((uint32_t)abs(pulses));
-    uint32_t slot, i;
+    uint32_t slot, i, t = 0;
 
     _spin_lock();
 
@@ -388,8 +386,9 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     {
         // find a free STEP slot
         i = PG_CH_SLOT_MAX_CNT - 1;
-        do slot = (slot + 1) & (PG_CH_SLOT_MAX_CNT - 1);
-        while ( *_pgc[s][slot] && i-- );
+        do { t += *_pgc[s][slot];
+             slot = (slot + 1) & (PG_CH_SLOT_MAX_CNT - 1);
+        } while ( *_pgc[s][slot] && i-- );
         // no free STEP slots?
         if ( *_pgc[s][slot] ) return -3;
     }
@@ -399,15 +398,16 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     {
         *_pgc[d][PG_TASK_TICK] = *_pgd[PG_TIMER_TICK];
         *_pgc[d][ *_pgc[d][PG_TASK_SLOT] ] = 1;
-        *_pgc[d][PG_TASK_TIMEOUT] = *_pgc[d][PG_TASK_T0];
-        *_pgc[s][PG_TASK_TIMEOUT] = step_timeout;
+        *_pgc[d][PG_TASK_TIMEOUT] = *_pgc[d][PG_TASK_T0] +
+            (t/2)*(*_pgc[s][PG_TASK_T0] + *_pgc[s][PG_TASK_T1]);
+        *_pgc[s][PG_TASK_TIMEOUT] = *_pgc[d][PG_TASK_T0] + *_pgc[d][PG_TASK_T1];
         _sgc[c].dir = dir_new;
     }
     else *_pgc[s][PG_TASK_TIMEOUT] = 0;
 
     // setup STEPs to do
     *_pgc[s][PG_TASK_TICK] = *_pgd[PG_TIMER_TICK];
-    *_pgc[s][slot] = t_new;
+    *_pgc[s][slot] = 2 * ((uint32_t)abs(pulses));
 
     _spin_unlock();
 
