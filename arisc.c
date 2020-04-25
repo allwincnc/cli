@@ -750,12 +750,12 @@ int32_t parse_and_exec(const char *str)
         printf("%s\n", (pg_data_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
-    if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 3) )
+    if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
     {
         printf("%u\n", pg_ch_data_get(arg[0], arg[1], arg[2], 1));
         return 0;
     }
-    if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT"\\)", &arg[0], 4) )
+    if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
     {
         printf("%s\n", (pg_ch_data_set(arg[0], arg[1], arg[2], arg[3], 1)) ? "ERROR" : "OK");
         return 0;
