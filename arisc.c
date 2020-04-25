@@ -337,7 +337,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     }
 
     uint32_t dir_new = (pulses > 0) ? 0 : 1;
-    uint32_t s, i, step_timeout = 0;
+    uint32_t s, s2, i, step_timeout = 0;
 
     _spin_lock();
 
@@ -357,6 +357,10 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     // add DIR task
     if ( _sgc[c].dir != dir_new )
     {
+        // no free slots for STEP task?
+        s2 = (s + 1) & PG_CH_SLOT_MAX;
+        if ( *_pgc[c][s2][PG_TOGGLES] ) { _spin_unlock(); return -4; }
+
         *_pgc[c][s][PG_PORT] = _sgc[c].port[DIR];
         *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
         *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
@@ -372,12 +376,8 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
         *_pgc[c][s][PG_TOGGLES] = 1;
 
         _sgc[c].dir = dir_new;
-
-        // no free slots for STEP task?
-        s = (s + 1) & PG_CH_SLOT_MAX;
-        if ( *_pgc[c][s][PG_TOGGLES] ) { _spin_unlock(); return -4; }
-
         step_timeout = _sgc[c].t1[DIR];
+        s = s2;
     }
 
     // add STEP task
