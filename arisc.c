@@ -343,11 +343,11 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     if ( *_pgc[c][s][PG_TOGGLES] )
     {
         // find a free slot
-        i = PG_CH_SLOT_MAX_CNT - 1;
+        i = PG_CH_SLOT_MAX;
         do s = (s + 1) & PG_CH_SLOT_MAX;
         while ( *_pgc[c][s][PG_TOGGLES] && i-- );
         // no free slots?
-        if ( *_pgc[c][s][PG_TOGGLES] ) return -3;
+        if ( *_pgc[c][s][PG_TOGGLES] ) { _spin_unlock(); return -3; }
     }
 
     // add DIR task
