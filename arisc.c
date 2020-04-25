@@ -383,17 +383,16 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     _spin_lock();
 
     // is current STEP slot is busy?
-    if ( *_pgc[s][PG_TASK_SLOT] )
+    slot = *_pgc[s][PG_TASK_SLOT];
+    if ( *_pgc[s][slot] )
     {
         // find a free STEP slot
         i = PG_CH_SLOT_MAX_CNT - 1;
-        slot = *_pgc[s][PG_TASK_SLOT];
         do slot = (slot + 1) & (PG_CH_SLOT_MAX_CNT - 1);
         while ( *_pgc[s][slot] && i-- );
         // no free STEP slots?
         if ( *_pgc[s][slot] ) return -3;
     }
-    else slot = *_pgc[s][PG_TASK_SLOT];
 
     // change a DIR?
     if ( _sgc[c].dir != dir_new )
