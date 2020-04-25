@@ -191,7 +191,6 @@ int32_t pg_data_set(uint32_t name, uint32_t value, uint32_t safe)
     if ( safe )
     {
         if ( name >= PG_DATA_CNT ) return -1;
-        if ( name == PG_TIMER_FREQ ) return -3;
         if ( name == PG_CH_CNT && value >= PG_CH_MAX_CNT ) return -4;
     }
     _spin_lock();
