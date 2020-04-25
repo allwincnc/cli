@@ -391,12 +391,12 @@ int32_t stepgen_cleanup()
     uint32_t *p, i;
 
     _spin_lock();
-    for ( i = PG_CH_MAX_CNT, p = (uint32_t*)_pgs; i--; p++ ) *p = 0;
-    for ( i = PG_CH_MAX_CNT*PG_CH_SLOT_MAX_CNT*PG_CH_DATA_CNT, p = (uint32_t*)_pgc; i--; p++ ) *p = 0;
-    for ( i = PG_DATA_CNT, p = (uint32_t*)_pgd; i--; p++ ) *p = 0;
+    for ( i = PG_CH_MAX_CNT, p = (uint32_t*)_pgs[0]; i--; p++ ) *p = 0;
+    for ( i = PG_CH_MAX_CNT*PG_CH_SLOT_MAX_CNT*PG_CH_DATA_CNT, p = (uint32_t*)_pgc[0][0][0]; i--; p++ ) *p = 0;
+    for ( i = PG_DATA_CNT, p = (uint32_t*)_pgd[0]; i--; p++ ) *p = 0;
     _spin_unlock();
 
-    for ( i = sizeof(_stepgen_ch_t)*STEPGEN_CH_MAX_CNT, p = (uint32_t*)_sgc; i--; p++ ) *p = 0;
+    for ( i = sizeof(_stepgen_ch_t)*STEPGEN_CH_MAX_CNT/4, p = (uint32_t*)_sgc; i--; p++ ) *p = 0;
 
     return 0;
 }
