@@ -366,13 +366,6 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
         *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
         *_pgc[c][s][PG_TIMEOUT] = _sgc[c].t0[DIR];
         *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
-        if ( _sgc[c].dir ) {
-            *_pgc[c][s][PG_T0] = _sgc[c].t0[DIR];
-            *_pgc[c][s][PG_T1] = _sgc[c].t1[DIR];
-        } else {
-            *_pgc[c][s][PG_T0] = _sgc[c].t1[DIR];
-            *_pgc[c][s][PG_T1] = _sgc[c].t0[DIR];
-        }
         *_pgc[c][s][PG_TOGGLES] = 1;
 
         _sgc[c].dir = dir_new;
