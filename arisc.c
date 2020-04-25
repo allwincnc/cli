@@ -390,12 +390,14 @@ int32_t stepgen_pos_set(uint32_t c, int32_t pos, uint32_t safe)
 static inline
 int32_t stepgen_cleanup()
 {
-    uint32_t *p, i;
+    uint32_t *p, i, f;
 
     _spin_lock();
     for ( i = PG_CH_MAX_CNT, p = (uint32_t*)_pgs[0]; i--; p++ ) *p = 0;
     for ( i = PG_CH_MAX_CNT*PG_CH_SLOT_MAX_CNT*PG_CH_DATA_CNT, p = (uint32_t*)_pgc[0][0][0]; i--; p++ ) *p = 0;
+    f = *_pgd[PG_TIMER_FREQ]; // don't clean timer frequency value
     for ( i = PG_DATA_CNT, p = (uint32_t*)_pgd[0]; i--; p++ ) *p = 0;
+    *_pgd[PG_TIMER_FREQ] = f;
     _spin_unlock();
 
     for ( i = sizeof(_stepgen_ch_t)*STEPGEN_CH_MAX_CNT/4, p = (uint32_t*)_sgc; i--; p++ ) *p = 0;
