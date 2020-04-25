@@ -243,6 +243,32 @@ uint32_t pg_ch_data_get(uint32_t c, uint32_t s, uint32_t name, uint32_t safe)
 }
 
 static inline
+int32_t pg_ch_slot_set(uint32_t c, uint32_t value, uint32_t safe)
+{
+    if ( safe )
+    {
+        if ( c >= PG_CH_MAX_CNT ) return -1;
+    }
+    _spin_lock();
+    *_pgs[c] = value;
+    _spin_unlock();
+    return 0;
+}
+
+static inline
+uint32_t pg_ch_slot_get(uint32_t c, uint32_t safe)
+{
+    if ( safe )
+    {
+        if ( c >= PG_CH_MAX_CNT ) return 0;
+    }
+    _spin_lock();
+    uint32_t value = *_pgs[c];
+    _spin_unlock();
+    return value;
+}
+
+static inline
 void _stepgen_ch_setup(uint32_t c)
 {
     _sgc[c].pos = 0;
@@ -605,6 +631,8 @@ int32_t parse_and_exec(const char *str)
     i32  pg_data_set        (name, value) \n\
     u32  pg_ch_data_get     (channel, slot, name) \n\
     i32  pg_ch_data_set     (channel, slot, name, value) \n\
+    u32  pg_ch_slot_get     (channel) \n\
+    i32  pg_ch_slot_set     (channel, value) \n\
 \n\
   Legend: \n\
 \n\
@@ -761,6 +789,16 @@ int32_t parse_and_exec(const char *str)
     if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
     {
         printf("%s\n", (pg_ch_data_set(arg[0], arg[1], arg[2], arg[3], 1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "pg_ch_slot_get *\\("UINT"\\)", &arg[0], 1) )
+    {
+        printf("%u\n", pg_ch_slot_get(arg[0], 1));
+        return 0;
+    }
+    if ( !reg_match(str, "pg_ch_slot_set *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+        printf("%s\n", (pg_ch_slot_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
 
