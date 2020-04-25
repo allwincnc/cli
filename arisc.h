@@ -91,6 +91,7 @@ enum
 
 
 typedef struct {
+    uint32_t busy;
     int32_t  pos;
     uint32_t dir;
     uint32_t port[2];
