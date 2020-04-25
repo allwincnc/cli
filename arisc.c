@@ -272,14 +272,14 @@ uint32_t pg_ch_slot_get(uint32_t c, uint32_t safe)
 static inline
 void _stepgen_ch_setup(uint32_t c)
 {
-    if ( *_pgd[PG_USED] && *_pgd[PG_CH_CNT] && _sgc[c].busy ) return;
+    if ( _sgc[c].busy ) return;
 
     _sgc[c].pos = 0;
     _sgc[c].dir = 0;
     _sgc[c].busy = 1;
 
-    uint32_t pg_ch_cnt = 1 + c;
-    if ( pg_ch_cnt < *_pgd[PG_CH_CNT] ) pg_ch_cnt = *_pgd[PG_CH_CNT];
+    uint32_t pg_ch_cnt = *_pgd[PG_CH_CNT];
+    if ( c >= *_pgd[PG_CH_CNT] ) pg_ch_cnt = c + 1;
 
     _spin_lock();
     *_pgd[PG_USED] = 1;
