@@ -320,6 +320,10 @@ int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1, 
         _stepgen_ch_setup(c);
     }
 
+    // arisc output delay correction
+    if ( t0 > 200 ) t0 -= 200;
+    if ( t1 > 200 ) t1 -= 200;
+
     _sgc[c].t0[type] = (uint32_t) ( (uint64_t)t0 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
     _sgc[c].t1[type] = (uint32_t) ( (uint64_t)t1 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
 
