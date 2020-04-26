@@ -368,7 +368,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
         *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
         *_pgc[c][s][PG_T0] = _sgc[c].t0[DIR];
         *_pgc[c][s][PG_T1] = _sgc[c].t1[DIR];
-        *_pgc[c][s][PG_TOGGLES] = 1;
+        *_pgc[c][s][PG_TOGGLES] = 2;
 
         _sgc[c].dir = dir_new;
         s = s2;
@@ -382,7 +382,7 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
     *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
     *_pgc[c][s][PG_T0] = _sgc[c].t0[STEP];
     *_pgc[c][s][PG_T1] = _sgc[c].t1[STEP];
-    *_pgc[c][s][PG_TOGGLES] = 2 * (uint32_t)abs(pulses);
+    *_pgc[c][s][PG_TOGGLES] = 1 + 2*((uint32_t)abs(pulses));
 
     _spin_unlock();
 
