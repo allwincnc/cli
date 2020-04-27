@@ -32,8 +32,7 @@ volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {0};
 static inline
 void _spin_lock()
 {
-    uint32_t i = 9999;
-    while ( *_spinlock && i-- );
+    while ( *_spinlock );
 }
 
 static inline
