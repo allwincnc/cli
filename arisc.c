@@ -41,7 +41,7 @@ int32_t spin_lock_test()
     while ( *_spinlock );
     volatile uint32_t i = 999999, a, b = 2;
     for ( ; i--; ) a = b*i;
-    *_spinlock = 0;
+    *_spinlock = !a ? a : 0;
     return 0;
 }
 
