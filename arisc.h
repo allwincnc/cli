@@ -56,7 +56,7 @@ typedef struct
 
 
 #define PG_CH_MAX_CNT       16
-#define PG_CH_SLOT_MAX_CNT  4
+#define PG_CH_SLOT_MAX_CNT  2
 #define PG_CH_SLOT_MAX      (PG_CH_SLOT_MAX_CNT - 1)
 
 enum
@@ -75,7 +75,6 @@ enum
 enum
 {
     PG_USED,
-    PG_TIMER_FREQ,
     PG_TIMER_TICK,
     PG_CH_CNT,
     PG_DATA_CNT
@@ -94,11 +93,6 @@ typedef struct {
     uint32_t busy;
     int32_t  pos;
     uint32_t dir;
-    uint32_t port[2];
-    uint32_t pin_msk[2];
-    uint32_t pin_mskn[2];
-    uint32_t t0[2];
-    uint32_t t1[2];
 } _stepgen_ch_t;
 
 enum { STEP, DIR };

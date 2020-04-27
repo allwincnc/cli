@@ -299,39 +299,23 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
         _stepgen_ch_setup(c);
     }
 
-    _sgc[c].port[type] = port;
-    _sgc[c].pin_msk[type] = 1UL << pin;
-    _sgc[c].pin_mskn[type] = ~(1UL << pin);
+    _spin_lock();
+
+    *_pgc[c][type][PG_PORT] = port;
+    *_pgc[c][type][PG_PIN_MSK] = 1UL << pin;
+    *_pgc[c][type][PG_PIN_MSKN] = ~(1UL << pin);
 
     gpio_pin_setup_for_output(port, pin, safe);
     if ( invert ) gpio_pin_set(port, pin, safe);
     else gpio_pin_clr(port, pin, safe);
 
-    return 0;
-}
-
-static inline
-int32_t stepgen_time_setup(uint32_t c, uint32_t type, uint32_t t0, uint32_t t1, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
-        if ( type >= 2 ) return -2;
-        _stepgen_ch_setup(c);
-    }
-
-    // arisc output delay correction
-    t0 = (t0 > 200) ? t0 - 200 : 0;
-    t1 = (t1 > 200) ? t1 - 200 : 0;
-
-    _sgc[c].t0[type] = (uint32_t) ( (uint64_t)t0 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
-    _sgc[c].t1[type] = (uint32_t) ( (uint64_t)t1 * ((uint64_t)(*_pgd[PG_TIMER_FREQ]/1000000)) / (uint64_t)1000 );
+    _spin_unlock();
 
     return 0;
 }
 
 static inline
-int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
+int32_t stepgen_task_setup(uint32_t c, int32_t pulses, uint32_t time, uint32_t safe)
 {
     if ( safe )
     {
@@ -340,57 +324,39 @@ int32_t stepgen_task_add(uint8_t c, int32_t pulses, uint32_t safe)
         _stepgen_ch_setup(c);
     }
 
+    time = (uint32_t) ((uint64_t)time * 450 / 1000);
     uint32_t dir_new = (pulses > 0) ? 0 : 1;
-    uint32_t s, s2, i;
+    uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 2 : 0;
+    uint32_t stp_tgs = 2 * (uint32_t)abs(pulses) + 1;
+
+    _sgc[c].dir = dir_new;
+    _sgc[c].pos += pulses;
 
     _spin_lock();
 
-    s = *_pgs[c];
-
-    // is current slot busy?
-    if ( *_pgc[c][s][PG_TOGGLES] )
-    {
-        // find a free slot
-        i = PG_CH_SLOT_MAX;
-        do s = (s + 1) & PG_CH_SLOT_MAX;
-        while ( *_pgc[c][s][PG_TOGGLES] && i-- );
-        // no free slots?
-        if ( *_pgc[c][s][PG_TOGGLES] ) { _spin_unlock(); return -3; }
-    }
+    stp_tgs += *_pgc[c][STEP][PG_TOGGLES];
+    uint32_t t = time / ((stp_tgs - 1) + dir_tgs);
 
     // add DIR task
-    if ( _sgc[c].dir != dir_new )
+    if ( dir_tgs )
     {
-        // no free slots for STEP task?
-        s2 = (s + 1) & PG_CH_SLOT_MAX;
-        if ( *_pgc[c][s2][PG_TOGGLES] ) { _spin_unlock(); return -4; }
-
-        *_pgc[c][s][PG_PORT] = _sgc[c].port[DIR];
-        *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
-        *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
-        *_pgc[c][s][PG_TIMEOUT] = _sgc[c].t0[DIR];
-        *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
-        *_pgc[c][s][PG_T0] = _sgc[c].t0[DIR];
-        *_pgc[c][s][PG_T1] = _sgc[c].t1[DIR];
-        *_pgc[c][s][PG_TOGGLES] = 2;
-
-        _sgc[c].dir = dir_new;
-        s = s2;
+        *_pgs[c] = DIR;
+        *_pgc[c][DIR][PG_TIMEOUT] = t;
+        *_pgc[c][DIR][PG_TICK] = *_pgd[PG_TIMER_TICK];
+        *_pgc[c][DIR][PG_T0] = t;
+        *_pgc[c][DIR][PG_T1] = t;
+        *_pgc[c][DIR][PG_TOGGLES] = dir_tgs;
     }
+    else *_pgs[c] = STEP;
 
     // add STEP task
-    *_pgc[c][s][PG_PORT] = _sgc[c].port[STEP];
-    *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[STEP];
-    *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[STEP];
-    *_pgc[c][s][PG_TIMEOUT] = 0;
-    *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
-    *_pgc[c][s][PG_T0] = _sgc[c].t0[STEP];
-    *_pgc[c][s][PG_T1] = _sgc[c].t1[STEP];
-    *_pgc[c][s][PG_TOGGLES] = 1 + 2*((uint32_t)abs(pulses));
+    *_pgc[c][STEP][PG_TIMEOUT] = 0;
+    *_pgc[c][STEP][PG_TICK] = *_pgd[PG_TIMER_TICK];
+    *_pgc[c][STEP][PG_T0] = t;
+    *_pgc[c][STEP][PG_T1] = t;
+    *_pgc[c][STEP][PG_TOGGLES] = stp_tgs;
 
     _spin_unlock();
-
-    _sgc[c].pos += pulses;
 
     return 0;
 }
@@ -419,14 +385,12 @@ int32_t stepgen_pos_set(uint32_t c, int32_t pos, uint32_t safe)
 static inline
 int32_t stepgen_cleanup()
 {
-    uint32_t *p, i, f;
+    uint32_t *p, i;
 
     _spin_lock();
     for ( i = PG_CH_MAX_CNT, p = (uint32_t*)_pgs[0]; i--; p++ ) *p = 0;
     for ( i = PG_CH_MAX_CNT*PG_CH_SLOT_MAX_CNT*PG_CH_DATA_CNT, p = (uint32_t*)_pgc[0][0][0]; i--; p++ ) *p = 0;
-    f = *_pgd[PG_TIMER_FREQ]; // don't clean timer frequency value
     for ( i = PG_DATA_CNT, p = (uint32_t*)_pgd[0]; i--; p++ ) *p = 0;
-    *_pgd[PG_TIMER_FREQ] = f;
     _spin_unlock();
 
     for ( i = sizeof(_stepgen_ch_t)*STEPGEN_CH_MAX_CNT/4, p = (uint32_t*)_sgc; i--; p++ ) *p = 0;
@@ -625,8 +589,7 @@ int32_t parse_and_exec(const char *str)
     i32  gpio_all_clr               (mask, mask, .., mask) \n\
 \n\
     i32  stepgen_pin_setup      (channel, type, port, pin, invert) \n\
-    i32  stepgen_time_setup     (channel, type, t0, t1) \n\
-    i32  stepgen_task_add       (channel, pulses) \n\
+    i32  stepgen_task_setup     (channel, pulses, time) \n\
     i32  stepgen_pos_get        (channel) \n\
     i32  stepgen_pos_set        (channel, position) \n\
     i32  stepgen_cleanup        () \n\
@@ -647,8 +610,7 @@ int32_t parse_and_exec(const char *str)
     type        0 = STEP, 1 = DIR\n\
     invert      invert GPIO pin? (0/1)\n\
     pulses      number of pin pulses (i32)\n\
-    t0          pin state setup time in nanoseconds (u32)\n\
-    t1          pin state hold time in nanoseconds (u32)\n\
+    time        time in nanoseconds (u32)\n\
     position    position value in pulses (i32)\n\
     slot        pulsgen channel's fifo slot (0..%u)\n\
     name        data name (u32)\n\
@@ -747,14 +709,9 @@ int32_t parse_and_exec(const char *str)
         printf("%s\n", (stepgen_pin_setup(arg[0], arg[1], arg[2], arg[3], arg[4], 1)) ? "ERROR" : "OK");
         return 0;
     }
-    if ( !reg_match(str, "stepgen_task_add *\\("UINT","INT"\\)", &arg[0], 2) )
+    if ( !reg_match(str, "stepgen_task_setup *\\("UINT","INT","UINT"\\)", &arg[0], 3) )
     {
-        printf("%s\n", (stepgen_task_add(arg[0], arg[1], 1)) ? "ERROR" : "OK");
-        return 0;
-    }
-    if ( !reg_match(str, "stepgen_time_setup *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
-    {
-        printf("%s\n", (stepgen_time_setup(arg[0], arg[1], arg[2], arg[3], 1)) ? "ERROR" : "OK");
+        printf("%s\n", (stepgen_task_setup(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "stepgen_pos_get *\\("UINT"\\)", &arg[0], 1) )
