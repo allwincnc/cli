@@ -336,7 +336,6 @@ int32_t stepgen_task_setup(uint32_t c, int32_t pulses, uint32_t time, uint32_t s
     stp_tgs += *_pgc[c][STEP][PG_TOGGLES];
     uint32_t t = time / ((stp_tgs - 1) + dir_tgs);
 
-    // add DIR task
     if ( dir_tgs )
     {
         *_pgs[c] = DIR;
@@ -345,15 +344,15 @@ int32_t stepgen_task_setup(uint32_t c, int32_t pulses, uint32_t time, uint32_t s
         *_pgc[c][DIR][PG_T0] = t;
         *_pgc[c][DIR][PG_T1] = t;
     }
-    else *_pgs[c] = STEP;
+    else
+    {
+        *_pgs[c] = STEP;
+        *_pgc[c][STEP][PG_TICK] = *_pgd[PG_TIMER_TICK];
+    }
 
-    *_pgc[c][DIR][PG_TOGGLES] = dir_tgs;
-
-    // add STEP task
-    *_pgc[c][STEP][PG_TIMEOUT] = 0;
-    *_pgc[c][STEP][PG_TICK] = *_pgd[PG_TIMER_TICK];
     *_pgc[c][STEP][PG_T0] = t;
     *_pgc[c][STEP][PG_T1] = t;
+    *_pgc[c][DIR][PG_TOGGLES] = dir_tgs;
     *_pgc[c][STEP][PG_TOGGLES] = stp_tgs;
 
     _spin_unlock();
