@@ -344,9 +344,10 @@ int32_t stepgen_task_setup(uint32_t c, int32_t pulses, uint32_t time, uint32_t s
         *_pgc[c][DIR][PG_TICK] = *_pgd[PG_TIMER_TICK];
         *_pgc[c][DIR][PG_T0] = t;
         *_pgc[c][DIR][PG_T1] = t;
-        *_pgc[c][DIR][PG_TOGGLES] = dir_tgs;
     }
     else *_pgs[c] = STEP;
+
+    *_pgc[c][DIR][PG_TOGGLES] = dir_tgs;
 
     // add STEP task
     *_pgc[c][STEP][PG_TIMEOUT] = 0;
