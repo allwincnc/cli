@@ -36,6 +36,16 @@ void _spin_lock()
 }
 
 static inline
+int32_t spin_lock_test()
+{
+    while ( *_spinlock );
+    volatile uint32_t i = 999999, a, b = 2;
+    for ( ; i--; ) a = b*i;
+    *_spinlock = 0;
+    return 0;
+}
+
+static inline
 void _spin_unlock()
 {
     *_spinlock = 0;
@@ -624,6 +634,12 @@ int32_t parse_and_exec(const char *str)
             (PG_CH_SLOT_MAX_CNT - 1),
             app_name
         );
+        return 0;
+    }
+
+    if ( !reg_match(str, "spin_lock_test *\\(\\)", &arg[0], 0) )
+    {
+        printf("%s\n", (spin_lock_test()) ? "ERROR" : "OK");
         return 0;
     }
 
