@@ -333,7 +333,7 @@ int32_t stepgen_task_setup(uint32_t c, int32_t pulses, uint32_t time, uint32_t s
 
     _spin_lock();
 
-    stp_tgs += *_pgc[c][STEP][PG_TOGGLES];
+    if ( *_pgc[c][STEP][PG_TOGGLES] ) stp_tgs += *_pgc[c][STEP][PG_TOGGLES] - 1;
     uint32_t t = time / ((stp_tgs - 1) + dir_tgs);
 
     if ( dir_tgs )
