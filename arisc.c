@@ -347,7 +347,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     {
         (*_pgc[c][s][PG_TOGGLES])--;
         uint32_t tgs = (*_pgc[c][s][PG_TOGGLES] / 2) * 2;
-        *_pgc[c][s][PG_TOGGLES] = *_pgc[c][s][PG_TOGGLES] % 2 ? 1 : 2;
+        *_pgc[c][s][PG_TOGGLES] = *_pgc[c][s][PG_TOGGLES] % 2 ? 2 : 1;
         stp_tgs += tgs;
         s = (s+1) & PG_CH_SLOT_MAX;
     }
