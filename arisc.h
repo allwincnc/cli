@@ -76,6 +76,8 @@ enum
 {
     PG_USED,
     PG_TIMER_TICK,
+    PG_ARM_LOCK,
+    PG_ARISC_LOCK,
     PG_CH_CNT,
     PG_DATA_CNT
 };
