@@ -334,45 +334,42 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     time = (uint32_t) ((uint64_t)time * 450 / 1000);
     uint32_t dir_new = (pulses > 0) ? 0 : 1;
     uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 2 : 0;
-    uint32_t stp_tgs = 1 + 2*((uint32_t)abs(pulses));
-    uint32_t s, i;
+    uint32_t stp_tgs = 2 * (uint32_t)abs(pulses);
 
     _sgc[c].dir = dir_new;
     _sgc[c].pos += pulses;
 
     _spin_lock();
 
-    s = *_pgs[c];
+    uint32_t s = *_pgs[c];
 
     if ( *_pgc[c][s][PG_TOGGLES] && !*_pgc[c][s][PG_TYPE] )
     {
-        i = *_pgc[c][s][PG_TOGGLES] - 1;
-        stp_tgs += i;
-        *_pgc[c][s][PG_TOGGLES] = 1 + i%2;
+        uint32_t tgs = *_pgc[c][s][PG_TOGGLES] - 1;
+        *_pgc[c][s][PG_TOGGLES] = 1 + tgs%2;
+        stp_tgs += tgs;
         s = (s+1) & PG_CH_SLOT_MAX;
     }
 
-    uint32_t t = time / ((stp_tgs - 1) + dir_tgs);
+    uint32_t t = time / (stp_tgs + dir_tgs);
+
+    *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
 
     if ( dir_tgs )
     {
         *_pgc[c][s][PG_TYPE] = DIR;
         *_pgc[c][s][PG_TIMEOUT] = t;
-        *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
         *_pgc[c][s][PG_T0] = t;
         *_pgc[c][s][PG_T1] = t;
         *_pgc[c][s][PG_TOGGLES] = dir_tgs;
         s = (s+1) & PG_CH_SLOT_MAX;
     }
-    else
-    {
-        *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
-    }
 
     *_pgc[c][s][PG_TYPE] = STEP;
+    *_pgc[c][s][PG_TIMEOUT] = 0;
     *_pgc[c][s][PG_T0] = t;
     *_pgc[c][s][PG_T1] = t;
-    *_pgc[c][s][PG_TOGGLES] = stp_tgs;
+    *_pgc[c][s][PG_TOGGLES] = stp_tgs + 1;
 
     _spin_unlock();
 
