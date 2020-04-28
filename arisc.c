@@ -335,18 +335,13 @@ int32_t stepgen_task_setup(uint32_t c, int32_t pulses, uint32_t time, uint32_t s
     uint32_t dir_new = (pulses > 0) ? 0 : 1;
     uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 2 : 0;
     uint32_t stp_tgs = 2 * (uint32_t)abs(pulses) + 1;
-    uint32_t timeout = 0;
 
     _sgc[c].dir = dir_new;
     _sgc[c].pos += pulses;
 
     _spin_lock();
 
-    if ( *_pgc[c][STEP][PG_TOGGLES] )
-    {
-        stp_tgs += *_pgc[c][STEP][PG_TOGGLES] - 1;
-        timeout = *_pgd[PG_TIMER_TICK] - *_pgc[c][DIR][PG_TICK];
-    }
+    if ( *_pgc[c][STEP][PG_TOGGLES] ) stp_tgs += *_pgc[c][STEP][PG_TOGGLES] - 1;
 
     uint32_t t = time / ((stp_tgs - 1) + dir_tgs);
 
@@ -364,7 +359,6 @@ int32_t stepgen_task_setup(uint32_t c, int32_t pulses, uint32_t time, uint32_t s
         *_pgc[c][STEP][PG_TICK] = *_pgd[PG_TIMER_TICK];
     }
 
-    *_pgc[c][STEP][PG_TIMEOUT] = timeout;
     *_pgc[c][STEP][PG_T0] = t;
     *_pgc[c][STEP][PG_T1] = t;
     *_pgc[c][DIR][PG_TOGGLES] = dir_tgs;
