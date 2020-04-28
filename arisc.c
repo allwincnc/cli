@@ -41,10 +41,10 @@ void _spin_unlock()
 }
 
 static inline
-int32_t spin_lock_test()
+int32_t spin_lock_test(uint32_t usec)
 {
     _spin_lock();
-    usleep(1000000);
+    usleep(usec);
     _spin_unlock();
     return 0;
 }
@@ -627,9 +627,9 @@ int32_t parse_and_exec(const char *str)
         return 0;
     }
 
-    if ( !reg_match(str, "spin_lock_test *\\(\\)", &arg[0], 0) )
+    if ( !reg_match(str, "spin_lock_test *\\("UINT"\\)", &arg[0], 1) )
     {
-        printf("%s\n", (spin_lock_test()) ? "ERROR" : "OK");
+        printf("%s\n", (spin_lock_test(arg[0])) ? "ERROR" : "OK");
         return 0;
     }
 
