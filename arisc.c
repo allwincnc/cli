@@ -308,9 +308,9 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
 
     _spin_lock();
 
-    *_pgc[c][type][PG_PORT] = port;
-    *_pgc[c][type][PG_PIN_MSK] = 1UL << pin;
-    *_pgc[c][type][PG_PIN_MSKN] = ~(1UL << pin);
+    _sgc[c].port[type] = port;
+    _sgc[c].pin_msk[type] = 1UL << pin;
+    _sgc[c].pin_mskn[type] = ~(_sgc[c].pin_msk[type]);
 
     gpio_pin_setup_for_output(port, pin, safe);
     if ( invert ) gpio_pin_set(port, pin, safe);
@@ -358,6 +358,9 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     if ( dir_tgs )
     {
         *_pgc[c][s][PG_TYPE] = DIR;
+        *_pgc[c][s][PG_PORT] = _sgc[c].port[DIR];
+        *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
+        *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
         *_pgc[c][s][PG_TIMEOUT] = t;
         *_pgc[c][s][PG_T0] = t;
         *_pgc[c][s][PG_T1] = t;
@@ -366,6 +369,9 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     }
 
     *_pgc[c][s][PG_TYPE] = STEP;
+    *_pgc[c][s][PG_PORT] = _sgc[c].port[STEP];
+    *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[STEP];
+    *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[STEP];
     *_pgc[c][s][PG_TIMEOUT] = 0;
     *_pgc[c][s][PG_T0] = t;
     *_pgc[c][s][PG_T1] = t;
