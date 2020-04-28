@@ -56,11 +56,12 @@ typedef struct
 
 
 #define PG_CH_MAX_CNT       16
-#define PG_CH_SLOT_MAX_CNT  2
+#define PG_CH_SLOT_MAX_CNT  4
 #define PG_CH_SLOT_MAX      (PG_CH_SLOT_MAX_CNT - 1)
 
 enum
 {
+    PG_TYPE,
     PG_PORT,
     PG_PIN_MSK,
     PG_PIN_MSKN,
