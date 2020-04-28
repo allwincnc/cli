@@ -334,7 +334,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     time = (uint32_t) ((uint64_t)time * 450 / 1000);
     uint32_t dir_new = (pulses > 0) ? 0 : 1;
     uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 2 : 0;
-    uint32_t stp_tgs = 2 * (uint32_t)abs(pulses) + 1;
+    uint32_t stp_tgs = 1 + 2*((uint32_t)abs(pulses));
     uint32_t s, i;
 
     _sgc[c].dir = dir_new;
@@ -346,9 +346,9 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
 
     if ( *_pgc[c][s][PG_TOGGLES] && !*_pgc[c][s][PG_TYPE] )
     {
-        i = *_pgc[c][s][PG_TOGGLES] % 2;
-        stp_tgs += (*_pgc[c][s][PG_TOGGLES] - i);
-        *_pgc[c][s][PG_TOGGLES] = i;
+        i = *_pgc[c][s][PG_TOGGLES] - 1;
+        stp_tgs += i;
+        *_pgc[c][s][PG_TOGGLES] = 1 + i%2;
         s = (s+1) & PG_CH_SLOT_MAX;
     }
 
