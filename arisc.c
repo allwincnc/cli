@@ -348,8 +348,6 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     }
     else _spin_unlock();
 
-    *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
-
     if ( dir_tgs )
     {
         t = time / ((stp_tgs-1) + (dir_tgs-1));
@@ -360,6 +358,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
         *_pgc[c][s][PG_T0] = t;
         *_pgc[c][s][PG_T1] = t;
         _spin_lock();
+        *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
         *_pgc[c][s][PG_TOGGLES] = dir_tgs;
         s = (s+1) & PG_CH_SLOT_MAX;
         *_pgc[c][s][PG_TOGGLES] = 0;
@@ -374,6 +373,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     *_pgc[c][s][PG_T0] = t;
     *_pgc[c][s][PG_T1] = t;
     _spin_lock();
+    *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
     *_pgc[c][s][PG_TOGGLES] = stp_tgs;
     _spin_unlock();
 
