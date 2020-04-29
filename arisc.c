@@ -336,6 +336,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
         s = (s+1) & PG_CH_SLOT_MAX;
     }
 
+    t /= 2;
     if ( *_pgc[c][s][PG_TOGGLES] || t > time ) return -3;
 
     _sgc[c].pos += pulses;
