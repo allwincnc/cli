@@ -289,7 +289,6 @@ void _stepgen_ch_setup(uint32_t c)
     if ( c >= *_pgd[PG_CH_CNT] ) pg_ch_cnt = c + 1;
 
     _spin_lock();
-    *_pgd[PG_USED] = 1;
     *_pgd[PG_CH_CNT] = pg_ch_cnt;
     _spin_unlock();
 }

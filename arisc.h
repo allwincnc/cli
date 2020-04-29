@@ -13,18 +13,6 @@
 
 
 
-// spinlock
-#define SPINLOCK_CNT            (32)
-#define SPINLOCK_BASE           (0x01C18000)
-#define SPINLOCK_SYSTATUS_REG   (SPINLOCK_BASE + 0x0000)
-#define SPINLOCK_STATUS_REG     (SPINLOCK_BASE + 0x0010)
-#define SPINLOCK_LOCK_REG(N)    (SPINLOCK_BASE + 0x0100 + (N)*0x4)
-#define SPINLOCK_ID             (SPINLOCK_CNT - 1)
-#define SPINLOCK_MASK           (1UL << SPINLOCK_ID)
-
-
-
-
 #define GPIO_BASE               0x01c20800
 #define GPIO_R_BASE             0x01f02c00
 #define GPIO_BANK_SIZE          0x24
@@ -61,7 +49,6 @@ typedef struct
 
 enum
 {
-    PG_TYPE,
     PG_PORT,
     PG_PIN_MSK,
     PG_PIN_MSKN,
@@ -75,7 +62,6 @@ enum
 
 enum
 {
-    PG_USED,
     PG_TIMER_TICK,
     PG_ARM_LOCK,
     PG_ARISC_LOCK,
