@@ -357,7 +357,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
         *_pgc[c][s][PG_PORT] = _sgc[c].port[DIR];
         *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
         *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
-        *_pgc[c][s][PG_TIMEOUT] = t;
+        *_pgc[c][s][PG_TIMEOUT] = 0;
         *_pgc[c][s][PG_T0] = t;
         *_pgc[c][s][PG_T1] = t;
         _spin_lock();
