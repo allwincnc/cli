@@ -326,27 +326,28 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
         _stepgen_ch_setup(c);
     }
 
-    uint32_t dir_new = (pulses > 0) ? 1 : -1;
-    uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 1 : 0;
-    uint32_t stp_tgs = 2*((uint32_t)abs(pulses));
-    uint32_t tgs;
+    uint32_t s = *_pgs[c];
+    uint32_t i = PG_CH_SLOT_MAX_CNT;
+    uint32_t t = 0;
 
-    time = (uint32_t) ((uint64_t)time * 450 / 1000);
+    for ( ; *_pgc[c][s][PG_TOGGLES] && i--; )
+    {
+        t += (*_pgc[c][s][PG_TOGGLES]) * (*_pgc[c][s][PG_T0]);
+        s = (s+1) & PG_CH_SLOT_MAX;
+    }
+
+    if ( *_pgc[c][s][PG_TOGGLES] || t > time ) return -3;
+
     _sgc[c].pos += pulses;
 
-    _spin_lock();
-    uint32_t s = *_pgs[c];
-    if ( *_pgc[c][s][PG_TOGGLES] )
-    {
-        tgs = *_pgc[c][s][PG_TOGGLES] - 1;
-        *_pgc[c][s][PG_TOGGLES] = tgs%2 ? 2 : 1;
-        _spin_unlock();
-        s = (s+1) & PG_CH_SLOT_MAX;
-        stp_tgs += tgs;
-    }
-    else _spin_unlock();
+    uint32_t stp_tgs = 2*((uint32_t)abs(pulses));
+    uint32_t dir_new = (pulses > 0) ? 1 : -1;
+    uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 1 : 0;
 
+    time -= t;
+    time = (uint32_t) ((uint64_t)time * 450 / 1000);
     time = time / (stp_tgs + dir_tgs);
+
     *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
 
     if ( dir_tgs )
@@ -358,10 +359,9 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
         *_pgc[c][s][PG_TIMEOUT] = 0;
         *_pgc[c][s][PG_T0] = time;
         *_pgc[c][s][PG_T1] = time;
-        _spin_lock();
         *_pgc[c][s][PG_TOGGLES] = 2;
-        _spin_unlock();
         s = (s+1) & PG_CH_SLOT_MAX;
+        *_pgc[c][s][PG_TOGGLES] = 0;
     }
 
     *_pgc[c][s][PG_PORT] = _sgc[c].port[STEP];
@@ -370,9 +370,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     *_pgc[c][s][PG_TIMEOUT] = 0;
     *_pgc[c][s][PG_T0] = time;
     *_pgc[c][s][PG_T1] = time;
-    _spin_lock();
     *_pgc[c][s][PG_TOGGLES] = 1 + stp_tgs;
-    _spin_unlock();
 
     return 0;
 }
