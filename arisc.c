@@ -282,7 +282,7 @@ void _stepgen_ch_setup(uint32_t c)
     if ( _sgc[c].busy ) return;
 
     _sgc[c].pos = 0;
-    _sgc[c].dir = 0;
+    _sgc[c].dir = 1;
     _sgc[c].busy = 1;
 
     uint32_t pg_ch_cnt = *_pgd[PG_CH_CNT];
@@ -326,55 +326,52 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
         _stepgen_ch_setup(c);
     }
 
-    time = (uint32_t) ((uint64_t)time * 450 / 1000);
-    uint32_t dir_new = (pulses > 0) ? 0 : 1;
-    uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 2 : 0;
-    uint32_t stp_tgs = 1 + 2*((uint32_t)abs(pulses));
-    uint32_t t;
+    uint32_t dir_new = (pulses > 0) ? 1 : -1;
+    uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 1 : 0;
+    uint32_t stp_tgs = 2*((uint32_t)abs(pulses));
+    uint32_t tgs;
 
-    _sgc[c].dir = dir_new;
+    time = (uint32_t) ((uint64_t)time * 450 / 1000);
     _sgc[c].pos += pulses;
 
     _spin_lock();
     uint32_t s = *_pgs[c];
     if ( *_pgc[c][s][PG_TOGGLES] )
     {
-        uint32_t tgs = *_pgc[c][s][PG_TOGGLES] - 1;
+        tgs = *_pgc[c][s][PG_TOGGLES] - 1;
         *_pgc[c][s][PG_TOGGLES] = tgs%2 ? 2 : 1;
-        s = (s+1) & PG_CH_SLOT_MAX;
-        *_pgc[c][s][PG_TOGGLES] = 0;
         _spin_unlock();
-        stp_tgs += (tgs/2)*2;
+        s = (s+1) & PG_CH_SLOT_MAX;
+        stp_tgs += tgs;
     }
     else _spin_unlock();
 
+    time = time / (stp_tgs + dir_tgs);
+    *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
+
     if ( dir_tgs )
     {
-        t = time / ((stp_tgs-1) + (dir_tgs-1));
+        _sgc[c].dir = dir_new;
         *_pgc[c][s][PG_PORT] = _sgc[c].port[DIR];
         *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
         *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
         *_pgc[c][s][PG_TIMEOUT] = 0;
-        *_pgc[c][s][PG_T0] = t;
-        *_pgc[c][s][PG_T1] = t;
+        *_pgc[c][s][PG_T0] = time;
+        *_pgc[c][s][PG_T1] = time;
         _spin_lock();
-        *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
-        *_pgc[c][s][PG_TOGGLES] = dir_tgs;
-        s = (s+1) & PG_CH_SLOT_MAX;
-        *_pgc[c][s][PG_TOGGLES] = 0;
+        *_pgc[c][s][PG_TOGGLES] = 2;
         _spin_unlock();
+        s = (s+1) & PG_CH_SLOT_MAX;
     }
-    else t = time / (stp_tgs-1);
 
     *_pgc[c][s][PG_PORT] = _sgc[c].port[STEP];
     *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[STEP];
     *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[STEP];
     *_pgc[c][s][PG_TIMEOUT] = 0;
-    *_pgc[c][s][PG_T0] = t;
-    *_pgc[c][s][PG_T1] = t;
+    *_pgc[c][s][PG_T0] = time;
+    *_pgc[c][s][PG_T1] = time;
     _spin_lock();
-    *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
-    *_pgc[c][s][PG_TOGGLES] = stp_tgs;
+    *_pgc[c][s][PG_TOGGLES] = 1 + stp_tgs;
     _spin_unlock();
 
     return 0;
