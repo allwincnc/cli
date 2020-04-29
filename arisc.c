@@ -331,6 +331,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     uint32_t dir_new = (pulses > 0) ? 0 : 1;
     uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 2 : 0;
     uint32_t stp_tgs = 1 + 2*((uint32_t)abs(pulses));
+    uint32_t t;
 
     _sgc[c].dir = dir_new;
     _sgc[c].pos += pulses;
@@ -348,12 +349,11 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     }
     else _spin_unlock();
 
-    uint32_t t = time / ((stp_tgs-1) + (dir_tgs-1));
-
     *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
 
     if ( dir_tgs )
     {
+        t = time / ((stp_tgs-1) + (dir_tgs-1));
         *_pgc[c][s][PG_PORT] = _sgc[c].port[DIR];
         *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
         *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
@@ -366,6 +366,7 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
         *_pgc[c][s][PG_TOGGLES] = 0;
         _spin_unlock();
     }
+    else t = time / (stp_tgs-1);
 
     *_pgc[c][s][PG_PORT] = _sgc[c].port[STEP];
     *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[STEP];
