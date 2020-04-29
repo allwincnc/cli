@@ -306,8 +306,6 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
         _stepgen_ch_setup(c);
     }
 
-    _spin_lock();
-
     _sgc[c].port[type] = port;
     _sgc[c].pin_msk[type] = 1UL << pin;
     _sgc[c].pin_mskn[type] = ~(_sgc[c].pin_msk[type]);
@@ -315,8 +313,6 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
     gpio_pin_setup_for_output(port, pin, safe);
     if ( invert ) gpio_pin_set(port, pin, safe);
     else gpio_pin_clr(port, pin, safe);
-
-    _spin_unlock();
 
     return 0;
 }
