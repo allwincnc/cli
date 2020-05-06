@@ -366,6 +366,7 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
     _sgc[c].pin_mskn[type] = ~(_sgc[c].pin_msk[type]);
 
     gpio_pin_func_set(port, pin, GPIO_FUNC_OUT, safe);
+    gpio_pin_pull_set(port, pin, GPIO_PULL_DISABLE, safe);
     if ( invert ) gpio_pin_set(port, pin, safe);
     else gpio_pin_clr(port, pin, safe);
 
