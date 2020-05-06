@@ -28,7 +28,8 @@ enum
     GPIO_FUNC_F3,
     GPIO_FUNC_F4,
     GPIO_FUNC_F5,
-    GPIO_FUNC_EINT
+    GPIO_FUNC_EINT,
+    GPIO_FUNC_DISABLE
 };
 
 enum { PA, PB, PC, PD, PE, PF, PG, PL };
