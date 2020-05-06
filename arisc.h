@@ -20,6 +20,17 @@
 #define GPIO_PORTS_MAX_CNT      8
 #define GPIO_PINS_MAX_CNT       24
 
+enum
+{
+    GPIO_FUNC_IN,
+    GPIO_FUNC_OUT,
+    GPIO_FUNC_F2,
+    GPIO_FUNC_F3,
+    GPIO_FUNC_F4,
+    GPIO_FUNC_F5,
+    GPIO_FUNC_EINT
+};
+
 enum { PA, PB, PC, PD, PE, PF, PG, PL };
 enum { LOW, HIGH };
 
