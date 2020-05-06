@@ -50,12 +50,71 @@ int32_t spin_lock_test(uint32_t usec)
 }
 
 static inline
+int32_t gpio_pin_pull_set(uint32_t port, uint32_t pin, uint32_t level, uint32_t safe)
+{
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+        if ( level >= GPIO_PULL_CNT ) return -3;
+    }
+    uint32_t slot = pin/16, pos = pin%16*2;
+    _spin_lock();
+    _GPIO[port]->pull[slot] &= ~(0b11 << pos);
+    _GPIO[port]->pull[slot] |= (level << pos);
+    _spin_unlock();
+    return 0;
+}
+
+static inline
+uint32_t gpio_pin_pull_get(uint32_t port, uint32_t pin, uint32_t safe)
+{
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+    }
+    uint32_t slot = pin/16, pos = pin%16*2;
+    return (_GPIO[port]->pull[slot] >> pos) & 0b11;
+}
+
+static inline
+int32_t gpio_pin_multi_drive_set(uint32_t port, uint32_t pin, uint32_t level, uint32_t safe)
+{
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+        if ( level >= GPIO_MULTI_DRIVE_LEVEL_CNT ) return -3;
+    }
+    uint32_t slot = pin/16, pos = pin%16*2;
+    _spin_lock();
+    _GPIO[port]->drive[slot] &= ~(0b11 << pos);
+    _GPIO[port]->drive[slot] |= (level << pos);
+    _spin_unlock();
+    return 0;
+}
+
+static inline
+uint32_t gpio_pin_multi_drive_get(uint32_t port, uint32_t pin, uint32_t safe)
+{
+    if ( safe )
+    {
+        if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
+        if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+    }
+    uint32_t slot = pin/16, pos = pin%16*2;
+    return (_GPIO[port]->drive[slot] >> pos) & 0b11;
+}
+
+static inline
 int32_t gpio_pin_func_set(uint32_t port, uint32_t pin, uint32_t func, uint32_t safe)
 {
     if ( safe )
     {
         if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
         if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
+        if ( func >= GPIO_FUNC_CNT ) return -3;
     }
     uint32_t slot = pin/8, pos = pin%8*4;
     _spin_lock();
@@ -73,42 +132,8 @@ uint32_t gpio_pin_func_get(uint32_t port, uint32_t pin, uint32_t safe)
         if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
         if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
     }
-    uint32_t slot = pin/8, pos = pin%8*4, func;
-    _spin_lock();
-    func = (_GPIO[port]->config[slot] >> pos) & 0b0111;
-    _spin_unlock();
-    return func;
-}
-
-static inline
-int32_t gpio_pin_setup_for_output(uint32_t port, uint32_t pin, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
-        if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
-    }
     uint32_t slot = pin/8, pos = pin%8*4;
-    _spin_lock();
-    _GPIO[port]->config[slot] &= ~(0b1111 << pos);
-    _GPIO[port]->config[slot] |=  (0b0001 << pos);
-    _spin_unlock();
-    return 0;
-}
-
-static inline
-int32_t gpio_pin_setup_for_input(uint32_t port, uint32_t pin, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( port >= GPIO_PORTS_MAX_CNT ) return -1;
-        if ( pin >= GPIO_PINS_MAX_CNT ) return -2;
-    }
-    uint32_t slot = pin/8, pos = pin%8*4;
-    _spin_lock();
-    _GPIO[port]->config[slot] &= ~(0b1111 << pos);
-    _spin_unlock();
-    return 0;
+    return (_GPIO[port]->config[slot] >> pos) & 0b0111;
 }
 
 static inline
@@ -340,7 +365,7 @@ int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin,
     _sgc[c].pin_msk[type] = 1UL << pin;
     _sgc[c].pin_mskn[type] = ~(_sgc[c].pin_msk[type]);
 
-    gpio_pin_setup_for_output(port, pin, safe);
+    gpio_pin_func_set(port, pin, GPIO_FUNC_OUT, safe);
     if ( invert ) gpio_pin_set(port, pin, safe);
     else gpio_pin_clr(port, pin, safe);
 
@@ -613,8 +638,12 @@ int32_t parse_and_exec(const char *str)
 \n\
   Functions: \n\
 \n\
-    i32  gpio_pin_setup_for_output  (port, pin) \n\
-    i32  gpio_pin_setup_for_input   (port, pin) \n\
+    i32  gpio_pin_func_set          (port, pin, function) \n\
+    u32  gpio_pin_func_get          (port, pin) \n\
+    i32  gpio_pin_pull_set          (port, pin, level) \n\
+    u32  gpio_pin_pull_get          (port, pin) \n\
+    i32  gpio_pin_multi_drive_set   (port, pin, level) \n\
+    u32  gpio_pin_multi_drive_get   (port, pin) \n\
     u32  gpio_pin_get               (port, pin) \n\
     i32  gpio_pin_set               (port, pin) \n\
     i32  gpio_pin_clr               (port, pin) \n\
@@ -638,29 +667,10 @@ int32_t parse_and_exec(const char *str)
     u32  pg_ch_slot_get (channel) \n\
     i32  pg_ch_slot_set (channel, value) \n\
 \n\
-  Legend: \n\
-\n\
-    port        GPIO port (0..%u | PA/PB/PC/PD/PE/PF/PG/PL)\n\
-    pin         GPIO pin (0..%u)\n\
-    mask        GPIO pins mask (u32)\n\
-    channel     channel ID (u32)\n\
-    type        0 = STEP, 1 = DIR\n\
-    invert      invert GPIO pin? (0/1)\n\
-    pulses      number of pin pulses (i32)\n\
-    time        time in nanoseconds (u32)\n\
-    position    position value in pulses (i32)\n\
-    slot        pulsgen channel's fifo slot (0..%u)\n\
-    name        data name (u32)\n\
-    value       data value (u32)\n\
-\n\
   NOTE:\n\
     If you are using stdin/stdout mode, omit `%s` and any \" brackets\n\
 \n",
-            app_name, app_name, app_name,
-            (GPIO_PORTS_MAX_CNT - 1),
-            (GPIO_PINS_MAX_CNT - 1),
-            (PG_CH_SLOT_MAX_CNT - 1),
-            app_name
+            app_name, app_name, app_name, app_name
         );
         return 0;
     }
@@ -673,6 +683,26 @@ int32_t parse_and_exec(const char *str)
 
     // --- GPIO ------
 
+    if ( !reg_match(str, "gpio_pin_pull_set *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
+    {
+        printf("%s\n", (gpio_pin_pull_set(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "gpio_pin_pull_get *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+        printf("%u\n", gpio_pin_pull_get(arg[0], arg[1], 1));
+        return 0;
+    }
+    if ( !reg_match(str, "gpio_pin_multi_drive_set *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
+    {
+        printf("%s\n", (gpio_pin_multi_drive_set(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "gpio_pin_multi_drive_get *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+        printf("%u\n", gpio_pin_multi_drive_get(arg[0], arg[1], 1));
+        return 0;
+    }
     if ( !reg_match(str, "gpio_pin_func_set *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
     {
         printf("%s\n", (gpio_pin_func_set(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
@@ -681,16 +711,6 @@ int32_t parse_and_exec(const char *str)
     if ( !reg_match(str, "gpio_pin_func_get *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
         printf("%u\n", gpio_pin_func_get(arg[0], arg[1], 1));
-        return 0;
-    }
-    if ( !reg_match(str, "gpio_pin_setup_for_output *\\("UINT","UINT"\\)", &arg[0], 2) )
-    {
-        printf("%s\n", (gpio_pin_setup_for_output(arg[0], arg[1], 1)) ? "ERROR" : "OK");
-        return 0;
-    }
-    if ( !reg_match(str, "gpio_pin_setup_for_input *\\("UINT","UINT"\\)", &arg[0], 2) )
-    {
-        printf("%s\n", (gpio_pin_setup_for_input(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
     if ( !reg_match(str, "gpio_pin_set *\\("UINT","UINT"\\)", &arg[0], 2) )
