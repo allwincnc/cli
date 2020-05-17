@@ -80,6 +80,7 @@ typedef struct
 
 enum
 {
+    PG_OWNER,
     PG_PORT,
     PG_PIN_MSK,
     PG_PIN_MSKN,
@@ -100,6 +101,13 @@ enum
     PG_DATA_CNT
 };
 
+enum
+{
+    PG_OWNER_NONE,
+    PG_OWNER_STEPGEN,
+    PG_OWNER_PWMGEN
+};
+
 #define PG_SHM_BASE         (ARISC_SHM_BASE)
 #define PG_SHM_CH_SLOT_BASE (PG_SHM_BASE)
 #define PG_SHM_CH_DATA_BASE (PG_SHM_CH_SLOT_BASE + PG_CH_MAX_CNT*4)
@@ -113,6 +121,7 @@ typedef struct {
     uint32_t busy;
     int32_t  pos;
     int32_t  dir;
+    uint32_t pg_ch;
     uint32_t port[2];
     uint32_t pin_msk[2];
     uint32_t pin_mskn[2];

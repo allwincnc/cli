@@ -341,8 +341,19 @@ void _stepgen_ch_setup(uint32_t c)
     _sgc[c].dir = 1;
     _sgc[c].busy = 1;
 
+    uint32_t pg_ch = 0;
+    for ( ; pg_ch < PG_CH_MAX_CNT; pg_ch++ )
+    {
+        if ( *_pgc[pg_ch][0][PG_OWNER] ) continue;
+    }
+
+    _sgc[c].pg_ch = pg_ch;
+
+    uint32_t s = PG_CH_SLOT_MAX_CNT;
+    for ( ; s--; ) *_pgc[pg_ch][s][PG_OWNER] = PG_OWNER_STEPGEN;
+
     uint32_t pg_ch_cnt = *_pgd[PG_CH_CNT];
-    if ( c >= *_pgd[PG_CH_CNT] ) pg_ch_cnt = c + 1;
+    if ( pg_ch >= *_pgd[PG_CH_CNT] ) pg_ch_cnt = pg_ch + 1;
 
     _spin_lock();
     *_pgd[PG_CH_CNT] = pg_ch_cnt;
@@ -386,15 +397,16 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     uint32_t s = *_pgs[c];
     uint32_t i = PG_CH_SLOT_MAX_CNT;
     uint32_t t = 0;
+    uint32_t pc = _sgc[c].pg_ch;
 
-    for ( ; *_pgc[c][s][PG_TOGGLES] && i--; )
+    for ( ; *_pgc[pc][s][PG_TOGGLES] && i--; )
     {
-        t += (*_pgc[c][s][PG_TOGGLES]) * (*_pgc[c][s][PG_T0]);
+        t += (*_pgc[pc][s][PG_TOGGLES]) * (*_pgc[pc][s][PG_T0]);
         s = (s+1) & PG_CH_SLOT_MAX;
     }
 
     t /= 2;
-    if ( *_pgc[c][s][PG_TOGGLES] || t > time ) return -3;
+    if ( *_pgc[pc][s][PG_TOGGLES] || t > time ) return -3;
 
     _sgc[c].pos += pulses;
 
@@ -406,29 +418,29 @@ int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t saf
     time = (uint32_t) ((uint64_t)time * 450 / 1000);
     time = time / (stp_tgs + dir_tgs);
 
-    *_pgc[c][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
+    *_pgc[pc][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
 
     if ( dir_tgs )
     {
         _sgc[c].dir = dir_new;
-        *_pgc[c][s][PG_PORT] = _sgc[c].port[DIR];
-        *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
-        *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
-        *_pgc[c][s][PG_TIMEOUT] = 0;
-        *_pgc[c][s][PG_T0] = time;
-        *_pgc[c][s][PG_T1] = time;
-        *_pgc[c][s][PG_TOGGLES] = 2;
+        *_pgc[pc][s][PG_PORT] = _sgc[c].port[DIR];
+        *_pgc[pc][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
+        *_pgc[pc][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
+        *_pgc[pc][s][PG_TIMEOUT] = 0;
+        *_pgc[pc][s][PG_T0] = time;
+        *_pgc[pc][s][PG_T1] = time;
+        *_pgc[pc][s][PG_TOGGLES] = 2;
         s = (s+1) & PG_CH_SLOT_MAX;
-        *_pgc[c][s][PG_TOGGLES] = 0;
+        *_pgc[pc][s][PG_TOGGLES] = 0;
     }
 
-    *_pgc[c][s][PG_PORT] = _sgc[c].port[STEP];
-    *_pgc[c][s][PG_PIN_MSK] = _sgc[c].pin_msk[STEP];
-    *_pgc[c][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[STEP];
-    *_pgc[c][s][PG_TIMEOUT] = 0;
-    *_pgc[c][s][PG_T0] = time;
-    *_pgc[c][s][PG_T1] = time;
-    *_pgc[c][s][PG_TOGGLES] = 1 + stp_tgs;
+    *_pgc[pc][s][PG_PORT] = _sgc[c].port[STEP];
+    *_pgc[pc][s][PG_PIN_MSK] = _sgc[c].pin_msk[STEP];
+    *_pgc[pc][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[STEP];
+    *_pgc[pc][s][PG_TIMEOUT] = 0;
+    *_pgc[pc][s][PG_T0] = time;
+    *_pgc[pc][s][PG_T1] = time;
+    *_pgc[pc][s][PG_TOGGLES] = 1 + stp_tgs;
 
     return 0;
 }
@@ -457,15 +469,31 @@ int32_t stepgen_pos_set(uint32_t c, int32_t pos, uint32_t safe)
 static inline
 int32_t stepgen_cleanup()
 {
-    uint32_t *p, i;
+    uint32_t c, pc, s;
 
     _spin_lock();
-    for ( i = PG_CH_MAX_CNT, p = (uint32_t*)_pgs[0]; i--; p++ ) *p = 0;
-    for ( i = PG_CH_MAX_CNT*PG_CH_SLOT_MAX_CNT*PG_CH_DATA_CNT, p = (uint32_t*)_pgc[0][0][0]; i--; p++ ) *p = 0;
-    for ( i = PG_DATA_CNT, p = (uint32_t*)_pgd[0]; i--; p++ ) *p = 0;
-    _spin_unlock();
 
-    for ( i = sizeof(_stepgen_ch_t)*STEPGEN_CH_MAX_CNT/4, p = (uint32_t*)_sgc; i--; p++ ) *p = 0;
+    for ( pc = *_pgd[PG_CH_CNT] ? *_pgd[PG_CH_CNT] - 1 : 0; pc; pc-- )
+    {
+        if ( *_pgc[pc][0][PG_OWNER] == PG_OWNER_STEPGEN ) (*_pgd[PG_CH_CNT])--;
+    }
+
+    for ( c = STEPGEN_CH_MAX_CNT; c--; )
+    {
+        if ( !_sgc[c].busy ) continue;
+
+        _sgc[c].busy = 0;
+        pc = _sgc[c].pg_ch;
+        *_pgs[pc] = 0;
+
+        for ( s = PG_CH_SLOT_MAX_CNT; s--; )
+        {
+            *_pgc[pc][s][PG_OWNER] = 0;
+            *_pgc[pc][s][PG_TOGGLES] = 0;
+        }
+    }
+
+    _spin_unlock();
 
     return 0;
 }
