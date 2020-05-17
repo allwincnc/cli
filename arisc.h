@@ -74,7 +74,7 @@ typedef struct
 
 
 
-#define PG_CH_MAX_CNT       16
+#define PG_CH_MAX_CNT       24
 #define PG_CH_SLOT_MAX_CNT  4
 #define PG_CH_SLOT_MAX      (PG_CH_SLOT_MAX_CNT - 1)
 
