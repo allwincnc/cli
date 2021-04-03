@@ -18,11 +18,8 @@ static uint32_t *_shm_vrt_addr, *_gpio_vrt_addr, *_r_gpio_vrt_addr;
 volatile _GPIO_PORT_REG_t *_GPIO[GPIO_PORTS_MAX_CNT] = {0};
 static uint32_t _gpio_buf[GPIO_PORTS_MAX_CNT] = {0};
 
-volatile uint32_t * _pgs[PG_CH_MAX_CNT] = {0};
-volatile uint32_t * _pgc[PG_CH_MAX_CNT][PG_CH_SLOT_MAX_CNT][PG_CH_DATA_CNT] = {0};
-volatile uint32_t * _pgd[PG_DATA_CNT] = {0};
-
-volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {0};
+volatile uint32_t * _pwmc[PWM_CH_MAX_CNT][PWM_CH_DATA_CNT] = {0};
+volatile uint32_t * _pwmd[PWM_DATA_CNT] = {0};
 
 
 
@@ -30,14 +27,15 @@ volatile _stepgen_ch_t _sgc[STEPGEN_CH_MAX_CNT] = {0};
 static inline
 void _spin_lock()
 {
-    *_pgd[PG_ARM_LOCK] = 1;
-    while ( *_pgd[PG_ARISC_LOCK] );
+    while ( *_pwmd[PWM_ARM_LOCK] ); // wait for other ARM apps
+    *_pwmd[PWM_ARM_LOCK]++; // grant access only for this ARM app
+    while ( *_pwmd[PWM_ARISC_LOCK] ); // wait for ARISC app
 }
 
 static inline
 void _spin_unlock()
 {
-    *_pgd[PG_ARM_LOCK] = 0;
+    *_pwmd[PWM_ARM_LOCK]--;
 }
 
 static inline
@@ -250,251 +248,196 @@ int32_t gpio_all_clr(uint32_t* mask, uint32_t safe)
 
 
 static inline
-int32_t pg_data_set(uint32_t name, uint32_t value, uint32_t safe)
+int32_t pwm_cleanup(uint32_t safe)
+{
+    uint32_t c, d;
+
+    if ( safe )
+    {
+    }
+
+    _spin_lock();
+    for ( c = PWM_CH_MAX_CNT; c--; ) {
+        for ( d = PWM_CH_DATA_CNT; d--; ) *_pwmc[c][d] = 0;
+    }
+    for ( d = PWM_DATA_CNT; d--; ) *_pwmd[d] = 0;
+    _spin_unlock();
+
+    return 0;
+}
+
+static inline
+int32_t pwm_data_set(uint32_t name, uint32_t value, uint32_t safe)
 {
     if ( safe )
     {
-        if ( name >= PG_DATA_CNT ) return -1;
-        if ( name == PG_CH_CNT && value >= PG_CH_MAX_CNT ) return -4;
+        if ( name >= PWM_DATA_CNT ) return -1;
+        if ( name == PWM_CH_CNT && value >= PWM_CH_MAX_CNT ) return -2;
     }
     _spin_lock();
-    *_pgd[name] = value;
+    *_pwmd[name] = value;
     _spin_unlock();
     return 0;
 }
 
 static inline
-uint32_t pg_data_get(uint32_t name, uint32_t safe)
+uint32_t pwm_data_get(uint32_t name, uint32_t safe)
 {
     if ( safe )
     {
-        if ( name >= PG_DATA_CNT ) return 0;
+        if ( name >= PWM_DATA_CNT ) return 0;
     }
     _spin_lock();
-    uint32_t value = *_pgd[name];
+    uint32_t value = *_pwmd[name];
     _spin_unlock();
     return value;
 }
 
 static inline
-int32_t pg_ch_data_set(uint32_t c, uint32_t s, uint32_t name, uint32_t value, uint32_t safe)
+int32_t pwm_ch_data_set(uint32_t c, uint32_t name, uint32_t value, uint32_t safe)
 {
     if ( safe )
     {
-        if ( c >= PG_CH_MAX_CNT ) return -1;
-        if ( s >= PG_CH_SLOT_MAX_CNT ) return -2;
-        if ( name >= PG_CH_DATA_CNT ) return -3;
+        if ( c >= PWM_CH_MAX_CNT ) return -1;
+        if ( name >= PWM_CH_DATA_CNT ) return -2;
     }
     _spin_lock();
-    *_pgc[c][s][name] = value;
+    *_pwmc[c][name] = (name == PWM_CH_POS) ? (int32_t)value : value;
     _spin_unlock();
     return 0;
 }
 
 static inline
-uint32_t pg_ch_data_get(uint32_t c, uint32_t s, uint32_t name, uint32_t safe)
+uint32_t pwm_ch_data_get(uint32_t c, uint32_t name, uint32_t safe)
 {
     if ( safe )
     {
-        if ( c >= PG_CH_MAX_CNT ) return 0;
-        if ( s >= PG_CH_SLOT_MAX_CNT ) return -1;
-        if ( name >= PG_CH_DATA_CNT ) return -2;
+        if ( c >= PWM_CH_MAX_CNT ) return 0;
+        if ( name >= PWM_CH_DATA_CNT ) return 0;
     }
     _spin_lock();
-    uint32_t value = *_pgc[c][s][name];
+    uint32_t value = *_pwmc[c][name];
     _spin_unlock();
     return value;
 }
 
 static inline
-int32_t pg_ch_slot_set(uint32_t c, uint32_t value, uint32_t safe)
+int32_t pwm_ch_pins_setup (
+    uint32_t c,
+    uint32_t p_port, uint32_t p_pin, uint32_t p_inv,
+    uint32_t d_port, uint32_t d_pin, uint32_t d_inv,
+    uint32_t safe )
 {
     if ( safe )
     {
-        if ( c >= PG_CH_MAX_CNT ) return -1;
+        if ( c >= PWM_CH_MAX_CNT ) return -1;
+        if ( p_port >= GPIO_PORTS_MAX_CNT ) return -1;
+        if ( p_pin >= GPIO_PINS_MAX_CNT ) return -1;
+        if ( d_port >= GPIO_PORTS_MAX_CNT ) return -1;
+        if ( d_pin >= GPIO_PINS_MAX_CNT ) return -1;
     }
+
+    gpio_pin_func_set(p_port, p_pin, GPIO_FUNC_OUT, safe);
+    gpio_pin_pull_set(p_port, p_pin, GPIO_PULL_DISABLE, safe);
+    if ( p_inv ) gpio_pin_set(p_port, p_pin, safe);
+    else         gpio_pin_clr(p_port, p_pin, safe);
+
+    gpio_pin_func_set(d_port, d_pin, GPIO_FUNC_OUT, safe);
+    gpio_pin_pull_set(d_port, d_pin, GPIO_PULL_DISABLE, safe);
+    if ( d_inv ) gpio_pin_set(d_port, d_pin, safe);
+    else         gpio_pin_clr(d_port, d_pin, safe);
+
     _spin_lock();
-    *_pgs[c] = value;
+    *_pwmc[c][PWM_CH_P_PORT] = p_port;
+    *_pwmc[c][PWM_CH_P_PIN_MSK] = 1UL << p_pin;
+    *_pwmc[c][PWM_CH_P_PIN_MSKN] = ~(1UL << p_pin);
+    *_pwmc[c][PWM_CH_D_PORT] = d_port;
+    *_pwmc[c][PWM_CH_D_PIN_MSK] = 1UL << d_pin;
+    *_pwmc[c][PWM_CH_D_PIN_MSKN] = ~(1UL << d_pin);
     _spin_unlock();
-    return 0;
-}
-
-static inline
-uint32_t pg_ch_slot_get(uint32_t c, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( c >= PG_CH_MAX_CNT ) return 0;
-    }
-    _spin_lock();
-    uint32_t value = *_pgs[c];
-    _spin_unlock();
-    return value;
-}
-
-static inline
-void _stepgen_ch_setup(uint32_t c)
-{
-    if ( _sgc[c].busy ) return;
-
-    _sgc[c].pos = 0;
-    _sgc[c].dir = 1;
-    _sgc[c].busy = 1;
-
-    uint32_t pg_ch = 0;
-    for ( ; pg_ch < PG_CH_MAX_CNT; pg_ch++ )
-    {
-        if ( *_pgc[pg_ch][0][PG_OWNER] ) continue;
-    }
-
-    _sgc[c].pg_ch = pg_ch;
-
-    uint32_t s = PG_CH_SLOT_MAX_CNT;
-    for ( ; s--; ) *_pgc[pg_ch][s][PG_OWNER] = PG_OWNER_STEPGEN;
-
-    uint32_t pg_ch_cnt = *_pgd[PG_CH_CNT];
-    if ( pg_ch >= *_pgd[PG_CH_CNT] ) pg_ch_cnt = pg_ch + 1;
-
-    _spin_lock();
-    *_pgd[PG_CH_CNT] = pg_ch_cnt;
-    _spin_unlock();
-}
-
-static inline
-int32_t stepgen_pin_setup(uint32_t c, uint8_t type, uint32_t port, uint32_t pin, uint32_t invert, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
-        if ( type >= 2 ) return -2;
-        if ( port >= GPIO_PORTS_MAX_CNT ) return -3;
-        if ( pin >= GPIO_PINS_MAX_CNT ) return -4;
-        _stepgen_ch_setup(c);
-    }
-
-    _sgc[c].port[type] = port;
-    _sgc[c].pin_msk[type] = 1UL << pin;
-    _sgc[c].pin_mskn[type] = ~(_sgc[c].pin_msk[type]);
-
-    gpio_pin_func_set(port, pin, GPIO_FUNC_OUT, safe);
-    gpio_pin_pull_set(port, pin, GPIO_PULL_DISABLE, safe);
-    if ( invert ) gpio_pin_set(port, pin, safe);
-    else gpio_pin_clr(port, pin, safe);
 
     return 0;
 }
 
 static inline
-int32_t stepgen_task_add(uint32_t c, int32_t pulses, uint32_t time, uint32_t safe)
+int32_t pwm_ch_times_setup (
+    uint32_t c,
+    int32_t p_freq_hz, uint32_t p_duty_u32,
+    uint32_t d_hold_ns, uint32_t d_setup_ns,
+    uint32_t safe )
 {
+    uint32_t p_t0, p_t1, p_period, d_t0, d_t1, d_change, ch_cnt, ch;
+
     if ( safe )
     {
-        if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
-        if ( !pulses ) return -2;
-        _stepgen_ch_setup(c);
+        if ( c >= PWM_CH_MAX_CNT ) return -1;
+        if ( !d_hold_ns ) d_hold_ns = 50000;
+        if ( !d_setup_ns ) d_setup_ns = 50000;
     }
 
-    uint32_t s = *_pgs[c];
-    uint32_t i = PG_CH_SLOT_MAX_CNT;
-    uint32_t t = 0;
-    uint32_t pc = _sgc[c].pg_ch;
+    ch_cnt = *_pwmd[PWM_CH_CNT];
 
-    for ( ; *_pgc[pc][s][PG_TOGGLES] && i--; )
+    if ( !p_freq_hz || !p_duty_u32 )
     {
-        t += (*_pgc[pc][s][PG_TOGGLES]) * (*_pgc[pc][s][PG_T0]);
-        s = (s+1) & PG_CH_SLOT_MAX;
-    }
-
-    t /= 2;
-    if ( *_pgc[pc][s][PG_TOGGLES] || t > time ) return -3;
-
-    _sgc[c].pos += pulses;
-
-    uint32_t stp_tgs = 2*((uint32_t)abs(pulses));
-    uint32_t dir_new = (pulses > 0) ? 1 : -1;
-    uint32_t dir_tgs = (_sgc[c].dir != dir_new) ? 1 : 0;
-
-    time -= t;
-    time = (uint32_t) ((uint64_t)time * 450 / 1000);
-    time = time / (stp_tgs + dir_tgs);
-
-    *_pgc[pc][s][PG_TICK] = *_pgd[PG_TIMER_TICK];
-
-    if ( dir_tgs )
-    {
-        _sgc[c].dir = dir_new;
-        *_pgc[pc][s][PG_PORT] = _sgc[c].port[DIR];
-        *_pgc[pc][s][PG_PIN_MSK] = _sgc[c].pin_msk[DIR];
-        *_pgc[pc][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[DIR];
-        *_pgc[pc][s][PG_TIMEOUT] = 0;
-        *_pgc[pc][s][PG_T0] = time;
-        *_pgc[pc][s][PG_T1] = time;
-        *_pgc[pc][s][PG_TOGGLES] = 2;
-        s = (s+1) & PG_CH_SLOT_MAX;
-        *_pgc[pc][s][PG_TOGGLES] = 0;
-    }
-
-    *_pgc[pc][s][PG_PORT] = _sgc[c].port[STEP];
-    *_pgc[pc][s][PG_PIN_MSK] = _sgc[c].pin_msk[STEP];
-    *_pgc[pc][s][PG_PIN_MSKN] = _sgc[c].pin_mskn[STEP];
-    *_pgc[pc][s][PG_TIMEOUT] = 0;
-    *_pgc[pc][s][PG_T0] = time;
-    *_pgc[pc][s][PG_T1] = time;
-    *_pgc[pc][s][PG_TOGGLES] = 1 + stp_tgs;
-
-    return 0;
-}
-
-static inline
-int32_t stepgen_pos_get(uint32_t c, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( c >= STEPGEN_CH_MAX_CNT ) return 0;
-    }
-    return _sgc[c].pos;
-}
-
-static inline
-int32_t stepgen_pos_set(uint32_t c, int32_t pos, uint32_t safe)
-{
-    if ( safe )
-    {
-        if ( c >= STEPGEN_CH_MAX_CNT ) return -1;
-    }
-    _sgc[c].pos = pos;
-    return 0;
-}
-
-static inline
-int32_t stepgen_cleanup()
-{
-    uint32_t c, pc, s;
-
-    _spin_lock();
-
-    for ( pc = *_pgd[PG_CH_CNT] ? *_pgd[PG_CH_CNT] - 1 : 0; pc; pc-- )
-    {
-        if ( *_pgc[pc][0][PG_OWNER] == PG_OWNER_STEPGEN ) (*_pgd[PG_CH_CNT])--;
-    }
-
-    for ( c = STEPGEN_CH_MAX_CNT; c--; )
-    {
-        if ( !_sgc[c].busy ) continue;
-
-        _sgc[c].busy = 0;
-        pc = _sgc[c].pg_ch;
-        *_pgs[pc] = 0;
-
-        for ( s = PG_CH_SLOT_MAX_CNT; s--; )
+        if ( (c+1) == ch_cnt )
         {
-            *_pgc[pc][s][PG_OWNER] = 0;
-            *_pgc[pc][s][PG_TOGGLES] = 0;
+            for ( ch = c; *_pwmc[ch][PWM_CH_P_BUSY]; ch-- );
+            ch_cnt = ch + 1;
         }
+        _spin_lock();
+        *_pwmc[c][PWM_CH_P_STOP] = 1;
+        *_pwmd[PWM_CH_CNT] = ch_cnt;
+        _spin_unlock();
+        return 0;
     }
 
+    if ( c >= ch_cnt ) ch_cnt = c + 1;
+
+    p_period = ARISC_CPU_FREQ / (p_freq_hz < 0 ? -p_freq_hz : p_freq_hz);
+    p_t1 = (uint32_t) ( ((uint64_t)p_period) * ((uint64_t)p_duty_u32) / ((uint64_t)UINT32_MAX) );
+    p_t0 = p_period - p_t1;
+
+    d_t0 = ARISC_CPU_FREQ / (1000000000 / d_hold_ns);
+    d_t1 = ARISC_CPU_FREQ / (1000000000 / d_setup_ns);
+    d_change = (p_freq_hz > 0 && (*_pwmc[c][PWM_CH_D])) ||
+               (p_freq_hz < 0 && !(*_pwmc[c][PWM_CH_D])) ? 1 : 0;
+
+    _spin_lock();
+    *_pwmc[c][PWM_CH_P_BUSY] = 1;
+    *_pwmc[c][PWM_CH_P_T0] = p_t0;
+    *_pwmc[c][PWM_CH_P_T1] = p_t1;
+    *_pwmc[c][PWM_CH_D_T0] = d_t0;
+    *_pwmc[c][PWM_CH_D_T1] = d_t1;
+    *_pwmc[c][PWM_CH_D_CHANGE] = d_change;
+    *_pwmd[PWM_CH_CNT] = ch_cnt;
     _spin_unlock();
 
+    return 0;
+}
+
+static inline
+int32_t pwm_ch_pos_get(uint32_t c, uint32_t safe)
+{
+    if ( safe )
+    {
+        if ( c >= PWM_CH_MAX_CNT ) return 0;
+    }
+    _spin_lock();
+    int32_t value = (int32_t) *_pwmc[c][PWM_CH_POS];
+    _spin_unlock();
+    return value;
+}
+
+static inline
+int32_t pwm_ch_pos_set(uint32_t c, int32_t pos, uint32_t safe)
+{
+    if ( safe )
+    {
+        if ( c >= PWM_CH_MAX_CNT ) return -1;
+    }
+    _spin_lock();
+    *_pwmc[c][PWM_CH_POS] = (uint32_t) pos;
+    _spin_unlock();
     return 0;
 }
 
@@ -504,25 +447,22 @@ int32_t stepgen_cleanup()
 void mem_init(void)
 {
     int32_t mem_fd;
-    uint32_t addr, off, port, ch, name, *p, s;
+    uint32_t addr, off, port, ch, name, *p;
 
     // open physical memory file
     mem_fd = open("/dev/mem", O_RDWR|O_SYNC);
     if ( mem_fd  < 0 ) { printf("ERROR: can't open /dev/mem file\n"); return; }
 
     // mmap shmem
-    addr = PG_SHM_BASE & ~(4096 - 1);
-    off = PG_SHM_BASE & (4096 - 1);
+    addr = PWM_SHM_BASE & ~(4096 - 1);
+    off = PWM_SHM_BASE & (4096 - 1);
     _shm_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
     p = _shm_vrt_addr + off/4;
-    for ( s = 0; s < PG_CH_MAX_CNT; s++, p++ ) _pgs[s] = p;
-    for ( ch = 0; ch < PG_CH_MAX_CNT; ch++ ) {
-        for ( s = 0; s < PG_CH_SLOT_MAX_CNT; s++ ) {
-            for ( name = 0; name < PG_CH_DATA_CNT; name++, p++ ) _pgc[ch][s][name] = p;
-        }
+    for ( ch = 0; ch < PWM_CH_MAX_CNT; ch++ ) {
+        for ( name = 0; name < PWM_CH_DATA_CNT; name++, p++ ) _pwmc[ch][name] = p;
     }
-    for ( name = 0; name < PG_DATA_CNT; name++, p++ ) _pgd[name] = p;
+    for ( name = 0; name < PWM_DATA_CNT; name++, p++ ) _pwmd[name] = p;
 
     // mmap gpio
     addr = GPIO_BASE & ~(4096 - 1);
@@ -683,18 +623,15 @@ int32_t parse_and_exec(const char *str)
     i32  gpio_all_set               (mask, mask, .., mask) \n\
     i32  gpio_all_clr               (mask, mask, .., mask) \n\
 \n\
-    i32  stepgen_pin_setup  (channel, type, port, pin, invert) \n\
-    i32  stepgen_task_add   (channel, pulses, time) \n\
-    i32  stepgen_pos_get    (channel) \n\
-    i32  stepgen_pos_set    (channel, position) \n\
-    i32  stepgen_cleanup    () \n\
-\n\
-    u32  pg_data_get    (name) \n\
-    i32  pg_data_set    (name, value) \n\
-    u32  pg_ch_data_get (channel, slot, name) \n\
-    i32  pg_ch_data_set (channel, slot, name, value) \n\
-    u32  pg_ch_slot_get (channel) \n\
-    i32  pg_ch_slot_set (channel, value) \n\
+    i32  pwm_cleanup        () \n\
+    u32  pwm_data_get       (name) \n\
+    i32  pwm_data_set       (name, value) \n\
+    u32  pwm_ch_data_get    (channel, name) \n\
+    i32  pwm_ch_data_set    (channel, name, value) \n\
+    i32  pwm_ch_pins_setup  (channel, p_port, p_pin, p_inv, d_port, d_pin, d_inv) \n\
+    i32  pwm_ch_times_setup (channel, p_freq_hz, p_duty_u32, d_hold_ns, d_setup_ns) \n\
+    u32  pwm_ch_pos_get     (channel) \n\
+    i32  pwm_ch_pos_set     (channel, value) \n\
 \n\
   NOTE:\n\
     If you are using stdin/stdout mode, omit `%s` and any \" brackets\n\
@@ -804,64 +741,55 @@ int32_t parse_and_exec(const char *str)
         return 0;
     }
 
-    // --- STEPGEN ------
+    // --- PWM ------
 
-    if ( !reg_match(str, "stepgen_pin_setup *\\("UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 5) )
+    if ( !reg_match(str, "pwm_cleanup *\\(\\)", &arg[0], 0) )
     {
-        printf("%s\n", (stepgen_pin_setup(arg[0], arg[1], arg[2], arg[3], arg[4], 1)) ? "ERROR" : "OK");
+        printf("%s\n", (pwm_cleanup(1)) ? "ERROR" : "OK");
         return 0;
     }
-    if ( !reg_match(str, "stepgen_task_add *\\("UINT","INT","UINT"\\)", &arg[0], 3) )
+    if ( !reg_match(str, "pwm_data_get *\\("UINT"\\)", &arg[0], 1) )
     {
-        printf("%s\n", (stepgen_task_add(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
+        printf("%u\n", pwm_data_get(arg[0], 1));
         return 0;
     }
-    if ( !reg_match(str, "stepgen_pos_get *\\("UINT"\\)", &arg[0], 1) )
+    if ( !reg_match(str, "pwm_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%i\n", stepgen_pos_get(arg[0], 1));
+        printf("%s\n", (pwm_data_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
-    if ( !reg_match(str, "stepgen_pos_set *\\("UINT","INT"\\)", &arg[0], 2) )
+    if ( !reg_match(str, "pwm_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 2) )
     {
-        printf("%s\n", (stepgen_pos_set(arg[0], (int32_t)arg[1], 1)) ? "ERROR" : "OK");
+        if ( arg[1] == PWM_CH_POS ) {
+            printf("%i\n", (int32_t)pwm_ch_data_get(arg[0], arg[1], 1));
+        } else {
+            printf("%u\n", pwm_ch_data_get(arg[0], arg[1], 1));
+        }
         return 0;
     }
-    if ( !reg_match(str, "stepgen_cleanup *\\(\\)", &arg[0], 0) )
+    if ( !reg_match(str, "pwm_ch_data_set *\\("UINT","UINT","INT"\\)", &arg[0], 3) )
     {
-        printf("%s\n", (stepgen_cleanup()) ? "ERROR" : "OK");
+        printf("%s\n", (pwm_ch_data_set(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
         return 0;
     }
-
-    // --- PULSGEN ------
-
-    if ( !reg_match(str, "pg_data_get *\\("UINT"\\)", &arg[0], 1) )
+    if ( !reg_match(str, "pwm_ch_pins_setup *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 7) )
     {
-        printf("%u\n", pg_data_get(arg[0], 1));
+        printf("%s\n", (pwm_ch_pins_setup(arg[0],arg[1],arg[2],arg[3],arg[4],arg[5],arg[6],1)) ? "ERROR" : "OK");
         return 0;
     }
-    if ( !reg_match(str, "pg_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
+    if ( !reg_match(str, "pwm_ch_times_setup *\\("UINT","INT","UINT","UINT","UINT"\\)", &arg[0], 5) )
     {
-        printf("%s\n", (pg_data_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
+        printf("%s\n", (pwm_ch_times_setup(arg[0],(int32_t)arg[1],arg[2],arg[3],arg[4],1)) ? "ERROR" : "OK");
         return 0;
     }
-    if ( !reg_match(str, "pg_ch_data_get *\\("UINT","UINT","UINT"\\)", &arg[0], 3) )
+    if ( !reg_match(str, "pwm_ch_pos_set *\\("UINT","INT"\\)", &arg[0], 2) )
     {
-        printf("%u\n", pg_ch_data_get(arg[0], arg[1], arg[2], 1));
+        printf("%s\n", (pwm_ch_pos_set(arg[0], (int32_t)arg[1], 1)) ? "ERROR" : "OK");
         return 0;
     }
-    if ( !reg_match(str, "pg_ch_data_set *\\("UINT","UINT","UINT","UINT"\\)", &arg[0], 4) )
+    if ( !reg_match(str, "pwm_ch_pos_get *\\("UINT"\\)", &arg[0], 1) )
     {
-        printf("%s\n", (pg_ch_data_set(arg[0], arg[1], arg[2], arg[3], 1)) ? "ERROR" : "OK");
-        return 0;
-    }
-    if ( !reg_match(str, "pg_ch_slot_get *\\("UINT"\\)", &arg[0], 1) )
-    {
-        printf("%u\n", pg_ch_slot_get(arg[0], 1));
-        return 0;
-    }
-    if ( !reg_match(str, "pg_ch_slot_set *\\("UINT","UINT"\\)", &arg[0], 2) )
-    {
-        printf("%s\n", (pg_ch_slot_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
+        printf("%i\n", pwm_ch_pos_get(arg[0], 1));
         return 0;
     }
 

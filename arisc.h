@@ -5,6 +5,7 @@
 
 
 
+#define ARISC_CPU_FREQ          450000000 // Hz
 #define ARISC_FW_BASE           (0x00040000) // for ARM CPU it's 0x00040000
 #define ARISC_FW_SIZE           ((8+8+32)*1024)
 #define ARISC_SHM_SIZE          (4096)
@@ -74,62 +75,47 @@ typedef struct
 
 
 
-#define PG_CH_MAX_CNT       24
-#define PG_CH_SLOT_MAX_CNT  4
-#define PG_CH_SLOT_MAX      (PG_CH_SLOT_MAX_CNT - 1)
+#define PWM_CH_MAX_CNT 16
 
 enum
 {
-    PG_OWNER,
-    PG_PORT,
-    PG_PIN_MSK,
-    PG_PIN_MSKN,
-    PG_TOGGLES,
-    PG_T0,
-    PG_T1,
-    PG_TICK,
-    PG_TIMEOUT,
-    PG_CH_DATA_CNT
+    PWM_CH_POS,
+    PWM_CH_TICK,
+    PWM_CH_TIMEOUT,
+
+    PWM_CH_P_BUSY,
+    PWM_CH_P_PORT,
+    PWM_CH_P_PIN_MSK,
+    PWM_CH_P_PIN_MSKN,
+    PWM_CH_P_T0,
+    PWM_CH_P_T1,
+    PWM_CH_P_STOP,
+
+    PWM_CH_D_BUSY,
+    PWM_CH_D_PORT,
+    PWM_CH_D_PIN_MSK,
+    PWM_CH_D_PIN_MSKN,
+    PWM_CH_D_T0,
+    PWM_CH_D_T1,
+    PWM_CH_D,
+    PWM_CH_D_CHANGE,
+
+    PWM_CH_DATA_CNT
 };
 
 enum
 {
-    PG_TIMER_TICK,
-    PG_ARM_LOCK,
-    PG_ARISC_LOCK,
-    PG_CH_CNT,
-    PG_DATA_CNT
+    PWM_TIMER_TICK,
+    PWM_ARM_LOCK,
+    PWM_ARISC_LOCK,
+    PWM_CH_CNT,
+    PWM_DATA_CNT
 };
 
-enum
-{
-    PG_OWNER_NONE,
-    PG_OWNER_STEPGEN,
-    PG_OWNER_PWMGEN
-};
-
-#define PG_SHM_BASE         (ARISC_SHM_BASE)
-#define PG_SHM_CH_SLOT_BASE (PG_SHM_BASE)
-#define PG_SHM_CH_DATA_BASE (PG_SHM_CH_SLOT_BASE + PG_CH_MAX_CNT*4)
-#define PG_SHM_DATA_BASE    (PG_SHM_CH_DATA_BASE + PG_CH_MAX_CNT*PG_CH_DATA_CNT*PG_CH_SLOT_MAX_CNT*4)
-#define PG_SHM_SIZE         (PG_SHM_DATA_BASE + PG_DATA_CNT*4)
-
-
-
-
-typedef struct {
-    uint32_t busy;
-    int32_t  pos;
-    int32_t  dir;
-    uint32_t pg_ch;
-    uint32_t port[2];
-    uint32_t pin_msk[2];
-    uint32_t pin_mskn[2];
-} _stepgen_ch_t;
-
-enum { STEP, DIR };
-
-#define STEPGEN_CH_MAX_CNT 16
+#define PWM_SHM_BASE         (ARISC_SHM_BASE)
+#define PWM_SHM_CH_DATA_BASE (PWM_SHM_BASE + PWM_CH_MAX_CNT*4)
+#define PWM_SHM_DATA_BASE    (PWM_SHM_CH_DATA_BASE + PWM_CH_MAX_CNT*PWM_CH_DATA_CNT*4)
+#define PWM_SHM_SIZE         (PWM_SHM_DATA_BASE + PWM_DATA_CNT*4)
 
 
 
