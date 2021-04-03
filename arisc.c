@@ -630,7 +630,7 @@ int32_t parse_and_exec(const char *str)
     i32  pwm_ch_data_set    (channel, name, value) \n\
     i32  pwm_ch_pins_setup  (channel, p_port, p_pin, p_inv, d_port, d_pin, d_inv) \n\
     i32  pwm_ch_times_setup (channel, p_freq_hz, p_duty_u32, d_hold_ns, d_setup_ns) \n\
-    u32  pwm_ch_pos_get     (channel) \n\
+    i32  pwm_ch_pos_get     (channel) \n\
     i32  pwm_ch_pos_set     (channel, value) \n\
 \n\
   NOTE:\n\
