@@ -459,10 +459,10 @@ void mem_init(void)
     _shm_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_shm_vrt_addr == MAP_FAILED) { printf("ERROR: shm mmap() failed\n"); return; }
     p = _shm_vrt_addr + off/4;
+    for ( name = 0; name < PWM_DATA_CNT; name++, p++ ) _pwmd[name] = p;
     for ( ch = 0; ch < PWM_CH_MAX_CNT; ch++ ) {
         for ( name = 0; name < PWM_CH_DATA_CNT; name++, p++ ) _pwmc[ch][name] = p;
     }
-    for ( name = 0; name < PWM_DATA_CNT; name++, p++ ) _pwmd[name] = p;
 
     // mmap gpio
     addr = GPIO_BASE & ~(4096 - 1);
