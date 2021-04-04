@@ -27,15 +27,14 @@ volatile uint32_t * _pwmd[PWM_DATA_CNT] = {0};
 static inline
 void _spin_lock()
 {
-    while ( *_pwmd[PWM_ARM_LOCK] ); // wait for other ARM apps
-    *_pwmd[PWM_ARM_LOCK]++; // grant access only for this ARM app
-    while ( *_pwmd[PWM_ARISC_LOCK] ); // wait for ARISC app
+    *_pwmd[PWM_ARM_LOCK] = 1;
+    while ( *_pwmd[PWM_ARISC_LOCK] );
 }
 
 static inline
 void _spin_unlock()
 {
-    *_pwmd[PWM_ARM_LOCK]--;
+    *_pwmd[PWM_ARM_LOCK] = 0;
 }
 
 static inline
@@ -256,12 +255,12 @@ int32_t pwm_cleanup(uint32_t safe)
     {
     }
 
-    _spin_lock();
+//    _spin_lock();
+    for ( d = PWM_DATA_CNT; d--; ) *_pwmd[d] = 0;
     for ( c = PWM_CH_MAX_CNT; c--; ) {
         for ( d = PWM_CH_DATA_CNT; d--; ) *_pwmc[c][d] = 0;
     }
-    for ( d = PWM_DATA_CNT; d--; ) *_pwmd[d] = 0;
-    _spin_unlock();
+//    _spin_unlock();
 
     return 0;
 }
