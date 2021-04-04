@@ -381,7 +381,8 @@ int32_t pwm_ch_times_setup (
     {
         if ( (c+1) == ch_cnt )
         {
-            for ( ch = c; *_pwmc[ch][PWM_CH_P_BUSY]; ch-- );
+            for ( ch = c; ch < PWM_CH_MAX_CNT && *_pwmc[ch][PWM_CH_P_BUSY]; ch-- );
+            if ( ch >= PWM_CH_MAX_CNT ) ch = 0;
             ch_cnt = ch + 1;
         }
         _spin_lock();
