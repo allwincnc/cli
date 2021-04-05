@@ -378,6 +378,7 @@ int32_t pwm_ch_times_setup (
 
     if ( !p_freq_hz || !p_duty_u32 )
     {
+        if ( !(*_pwmc[c][PWM_CH_P_BUSY]) || *_pwmc[c][PWM_CH_P_STOP] ) return 0;
         if ( (c+1) == ch_cnt )
         {
             for ( ch = c; ch < PWM_CH_MAX_CNT && *_pwmc[ch][PWM_CH_P_BUSY]; ch-- );
