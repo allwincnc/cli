@@ -395,11 +395,14 @@ int32_t pwm_ch_times_setup (
     if ( c >= ch_cnt ) ch_cnt = c + 1;
 
     p_period = ARISC_CPU_FREQ / (p_freq_hz < 0 ? -p_freq_hz : p_freq_hz);
+    p_period = p_period < (2*ARISC_WASTED_TICKS) ? 0 : p_period - (2*ARISC_WASTED_TICKS);
     p_t1 = (uint32_t) ( ((uint64_t)p_period) * ((uint64_t)p_duty_u32) / ((uint64_t)UINT32_MAX) );
     p_t0 = p_period - p_t1;
 
     d_t0 = ARISC_CPU_FREQ / (1000000000 / d_hold_ns);
+    d_t0 = d_t0 < ARISC_WASTED_TICKS ? 0 : d_t0 - ARISC_WASTED_TICKS;
     d_t1 = ARISC_CPU_FREQ / (1000000000 / d_setup_ns);
+    d_t1 = d_t1 < ARISC_WASTED_TICKS ? 0 : d_t1 - ARISC_WASTED_TICKS;
     d_change = (p_freq_hz > 0 && (*_pwmc[c][PWM_CH_D])) ||
                (p_freq_hz < 0 && !(*_pwmc[c][PWM_CH_D])) ? 1 : 0;
 

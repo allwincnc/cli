@@ -6,6 +6,7 @@
 
 
 #define ARISC_CPU_FREQ          450000000 // Hz
+#define ARISC_WASTED_TICKS      (160/2) // number of ARISC ticks wasted for calculations
 #define ARISC_FW_BASE           (0x00040000) // for ARM CPU it's 0x00040000
 #define ARISC_FW_SIZE           ((8+8+32)*1024)
 #define ARISC_SHM_SIZE          (4096)
