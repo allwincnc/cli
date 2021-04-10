@@ -45,7 +45,7 @@ static inline
 void _enc_spin_lock()
 {
     *_encd[ENC_ARM_LOCK] = 1;
-    if ( ! *_pwmd[ENC_CH_CNT] ) return;
+    if ( ! *_encd[ENC_CH_CNT] ) return;
     while ( *_encd[ENC_ARISC_LOCK] );
 }
 
