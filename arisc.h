@@ -121,4 +121,50 @@ enum
 
 
 
+#define ENC_CH_MAX_CNT 8
+
+enum
+{
+    ENC_CH_BUSY,
+    ENC_CH_POS,
+    ENC_CH_AB_STATE,
+
+    ENC_CH_A_PORT,
+    ENC_CH_A_PIN_MSK,
+    ENC_CH_A_INV,
+    ENC_CH_A_ALL,
+    ENC_CH_A_STATE,
+
+    ENC_CH_B_USE,
+    ENC_CH_B_PORT,
+    ENC_CH_B_PIN_MSK,
+    ENC_CH_B_INV,
+    ENC_CH_B_STATE,
+
+    ENC_CH_Z_USE,
+    ENC_CH_Z_PORT,
+    ENC_CH_Z_PIN_MSK,
+    ENC_CH_Z_INV,
+    ENC_CH_Z_ALL,
+    ENC_CH_Z_STATE,
+
+    ENC_CH_DATA_CNT
+};
+
+enum
+{
+    ENC_ARM_LOCK,
+    ENC_ARISC_LOCK,
+    ENC_CH_CNT,
+    ENC_DATA_CNT
+};
+
+#define ENC_SHM_BASE         (PWM_SHM_BASE + PWM_SHM_SIZE)
+#define ENC_SHM_DATA_BASE    (ENC_SHM_BASE)
+#define ENC_SHM_CH_DATA_BASE (ENC_SHM_DATA_BASE + ENC_DATA_CNT*4)
+#define ENC_SHM_SIZE         (ENC_SHM_CH_DATA_BASE + ENC_CH_MAX_CNT*ENC_CH_DATA_CNT*4 - ENC_SHM_BASE)
+
+
+
+
 #endif
