@@ -803,7 +803,7 @@ int32_t reg_match(const char *source, const char *pattern, uint32_t *match_array
 
 int32_t parse_and_exec(const char *str)
 {
-    uint32_t arg[10] = {0};
+    uint32_t arg[12] = {0};
 
     #define UINT " *([0-9]+|0x[A-Fa-f]+|0b[01]+|P[ABCDEFGL]) *"
     #define INT " *(\\-?[0-9]+) *"
@@ -853,6 +853,16 @@ int32_t parse_and_exec(const char *str)
     i32  pwm_ch_times_setup (channel, p_freq_mHz, p_duty_s32, d_hold_ns, d_setup_ns) \n\
     i32  pwm_ch_pos_get     (channel) \n\
     i32  pwm_ch_pos_set     (channel, value) \n\
+\n\
+    i32  enc_cleanup        () \n\
+    u32  enc_data_get       (name) \n\
+    i32  enc_data_set       (name, value) \n\
+    u32  enc_ch_data_get    (channel, name) \n\
+    i32  enc_ch_data_set    (channel, name, value) \n\
+    i32  enc_ch_pins_setup  (channel, a_port,a_pin,a_inv,a_all, b_port,b_pin, z_port,z_pin,z_inv,z_all) \n\
+    i32  enc_ch_state_set   (channel, enable) \n\
+    i32  enc_ch_pos_get     (channel) \n\
+    i32  enc_ch_pos_set     (channel, value) \n\
 \n\
   NOTE:\n\
     If you are using stdin/stdout mode, omit `%s` and any \" brackets\n\
@@ -1005,6 +1015,58 @@ int32_t parse_and_exec(const char *str)
     if ( !reg_match(str, "pwm_ch_pos_get *\\("UINT"\\)", &arg[0], 1) )
     {
         printf("%i\n", pwm_ch_pos_get(arg[0], 1));
+        return 0;
+    }
+
+    // --- encoder ------
+
+    if ( !reg_match(str, "enc_cleanup *\\(\\)", &arg[0], 0) )
+    {
+        printf("%s\n", (enc_cleanup(1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "enc_data_get *\\("UINT"\\)", &arg[0], 1) )
+    {
+        printf("%u\n", enc_data_get(arg[0], 1));
+        return 0;
+    }
+    if ( !reg_match(str, "enc_data_set *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+        printf("%s\n", (enc_data_set(arg[0], arg[1], 1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "enc_ch_data_get *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+        if ( arg[1] == PWM_CH_POS ) {
+            printf("%i\n", (int32_t)enc_ch_data_get(arg[0], arg[1], 1));
+        } else {
+            printf("%u\n", enc_ch_data_get(arg[0], arg[1], 1));
+        }
+        return 0;
+    }
+    if ( !reg_match(str, "enc_ch_data_set *\\("UINT","UINT","INT"\\)", &arg[0], 3) )
+    {
+        printf("%s\n", (enc_ch_data_set(arg[0], arg[1], arg[2], 1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "enc_ch_pins_setup *\\("UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT","UINT"\\)", &arg[0], 11) )
+    {
+        printf("%s\n", (enc_ch_pins_setup(arg[0],arg[1],arg[2],arg[3],arg[4],arg[5],arg[6],arg[7],arg[8],arg[9],arg[10],1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "enc_ch_state_set *\\("UINT","UINT"\\)", &arg[0], 2) )
+    {
+        printf("%s\n", (enc_ch_state_set(arg[0],arg[1],1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "enc_ch_pos_set *\\("UINT","INT"\\)", &arg[0], 2) )
+    {
+        printf("%s\n", (enc_ch_pos_set(arg[0], (int32_t)arg[1], 1)) ? "ERROR" : "OK");
+        return 0;
+    }
+    if ( !reg_match(str, "enc_ch_pos_get *\\("UINT"\\)", &arg[0], 1) )
+    {
+        printf("%i\n", enc_ch_pos_get(arg[0], 1));
         return 0;
     }
 
