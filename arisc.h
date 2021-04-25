@@ -6,7 +6,6 @@
 
 
 #define ARISC_CPU_FREQ          450000000 // Hz
-#define ARISC_WASTED_TICKS      (160/2) // number of ARISC ticks wasted for calculations
 #define ARISC_FW_BASE           (0x00040000) // for ARM CPU it's 0x00040000
 #define ARISC_FW_SIZE           ((8+8+32)*1024)
 #define ARISC_SHM_SIZE          (4096)
@@ -77,28 +76,31 @@ typedef struct
 
 
 #define PWM_CH_MAX_CNT 16
+#define PWM_WASTED_TICKS (160/2) // number of ARISC ticks wasted for calculations
 
 enum
 {
     PWM_CH_POS,
     PWM_CH_TICK,
     PWM_CH_TIMEOUT,
+    PWM_CH_STATE,
+    PWM_CH_WATCHDOG,
 
-    PWM_CH_P_BUSY,
     PWM_CH_P_PORT,
     PWM_CH_P_PIN_MSK,
     PWM_CH_P_PIN_MSKN,
+    PWM_CH_P_INV,
     PWM_CH_P_T0,
     PWM_CH_P_T1,
     PWM_CH_P_STOP,
 
-    PWM_CH_D_BUSY,
     PWM_CH_D_PORT,
     PWM_CH_D_PIN_MSK,
     PWM_CH_D_PIN_MSKN,
+    PWM_CH_D,
+    PWM_CH_D_INV,
     PWM_CH_D_T0,
     PWM_CH_D_T1,
-    PWM_CH_D,
     PWM_CH_D_CHANGE,
 
     PWM_CH_DATA_CNT
@@ -111,6 +113,15 @@ enum
     PWM_ARISC_LOCK,
     PWM_CH_CNT,
     PWM_DATA_CNT
+};
+
+enum
+{
+    PWM_CH_STATE_IDLE,
+    PWM_CH_STATE_P0,
+    PWM_CH_STATE_P1,
+    PWM_CH_STATE_D0,
+    PWM_CH_STATE_D1
 };
 
 #define PWM_SHM_BASE         (ARISC_SHM_BASE)
