@@ -93,6 +93,7 @@ enum
     PWM_CH_P_T0,
     PWM_CH_P_T1,
     PWM_CH_P_STOP,
+    PWM_CH_P_TICK,
 
     PWM_CH_D_PORT,
     PWM_CH_D_PIN_MSK,
