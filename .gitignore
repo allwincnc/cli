@@ -1,6 +1,2 @@
 *.o
-/.settings
-.project
-.cproject
 arisc
-
