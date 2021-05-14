@@ -724,7 +724,7 @@ void mem_init(void)
     off = GPIO_BASE & (4096 - 1);
     _gpio_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_gpio_vrt_addr == MAP_FAILED) { printf("ERROR: gpio mmap() failed\n"); return; }
-    for ( port = PA; port <= PG; ++port )
+    for ( port = PA; port <= PH; ++port )
     {
         _GPIO[port] = (_GPIO_PORT_REG_t *)(_gpio_vrt_addr + (off + port*0x24)/4);
     }
@@ -734,7 +734,10 @@ void mem_init(void)
     off = GPIO_R_BASE & (4096 - 1);
     _r_gpio_vrt_addr = mmap(NULL, 4096, PROT_READ | PROT_WRITE, MAP_SHARED, mem_fd, addr);
     if (_r_gpio_vrt_addr == MAP_FAILED) { printf("ERROR: r_gpio mmap() failed\n"); return; }
-    _GPIO[PL] = (_GPIO_PORT_REG_t *)(_r_gpio_vrt_addr + off/4);
+    for ( port = PL; port <= PM; ++port )
+    {
+        _GPIO[port] = (_GPIO_PORT_REG_t *)(_r_gpio_vrt_addr + (off + (port-PL)*0x24)/4);
+    }
 
     // no need to keep phy memory file open after mmap
     close(mem_fd);
@@ -793,9 +796,12 @@ int32_t reg_match(const char *source, const char *pattern, uint32_t *match_array
             match[size] = 0;
 
             // if we have a port name
-            if ( size == 2 && match[0] == 'P' && ((match[1] >= 'A' && match[1] <= 'G') || match[1] == 'L') )
+            if ( size == 2 && match[0] == 'P' &&
+                 ((match[1] >= 'A' && match[1] <= 'H') || (match[1] >= 'L' && match[1] <= 'M')) )
             {
-                *arg = (match[1] == 'L') ? (PL) : (match[1] - 'A');
+                *arg = (match[1] >= 'L' && match[1] <= 'M') ?
+                    (match[1] - 'L' + PL) :
+                    (match[1] - 'A') ;
             }
             // if we have a hex number
             else if ( size >= 3 && match[0] == '0' && match[1] == 'x' )
@@ -839,7 +845,7 @@ int32_t parse_and_exec(const char *str)
 {
     uint32_t arg[12] = {0};
 
-    #define UINT " *([0-9]+|0x[A-Fa-f]+|0b[01]+|P[ABCDEFGL]) *"
+    #define UINT " *([0-9]+|0x[A-Fa-f]+|0b[01]+|P[ABCDEFGHLM]) *"
     #define INT " *(\\-?[0-9]+) *"
 
     // --- HELP, EXAMPLES, EXIT ------
