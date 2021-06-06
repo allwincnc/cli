@@ -596,35 +596,46 @@ int32_t enc_ch_pins_setup(
     uint32_t z_port, uint32_t z_pin, uint32_t z_inv, uint32_t z_all,
     uint32_t safe
 ) {
+    uint32_t b_use = 0, z_use = 0;
+
     if ( safe )
     {
         if ( c >= ENC_CH_MAX_CNT ) return -1;
         if ( a_port >= GPIO_PORTS_MAX_CNT ) return -1;
         if ( a_pin >= GPIO_PINS_MAX_CNT ) return -1;
-        if ( b_port >= GPIO_PORTS_MAX_CNT ) return -1;
-        if ( b_pin >= GPIO_PINS_MAX_CNT ) return -1;
-        if ( z_port >= GPIO_PORTS_MAX_CNT ) return -1;
-        if ( z_pin >= GPIO_PINS_MAX_CNT ) return -1;
     }
+
+    if ( b_port < GPIO_PORTS_MAX_CNT && b_pin < GPIO_PINS_MAX_CNT ) b_use = 1;
+    if ( z_port < GPIO_PORTS_MAX_CNT && z_pin < GPIO_PINS_MAX_CNT ) z_use = 1;
 
     gpio_pin_func_set(a_port, a_pin, GPIO_FUNC_IN, safe);
     gpio_pin_pull_set(a_port, a_pin, GPIO_PULL_DISABLE, safe);
-    gpio_pin_func_set(b_port, b_pin, GPIO_FUNC_IN, safe);
-    gpio_pin_pull_set(b_port, b_pin, GPIO_PULL_DISABLE, safe);
-    gpio_pin_func_set(z_port, z_pin, GPIO_FUNC_IN, safe);
-    gpio_pin_pull_set(z_port, z_pin, GPIO_PULL_DISABLE, safe);
+    if ( b_use ) {
+        gpio_pin_func_set(b_port, b_pin, GPIO_FUNC_IN, safe);
+        gpio_pin_pull_set(b_port, b_pin, GPIO_PULL_DISABLE, safe);
+    }
+    if ( z_use ) {
+        gpio_pin_func_set(z_port, z_pin, GPIO_FUNC_IN, safe);
+        gpio_pin_pull_set(z_port, z_pin, GPIO_PULL_DISABLE, safe);
+    }
 
     _enc_spin_lock();
     *_encc[c][ENC_CH_A_PORT] = a_port;
     *_encc[c][ENC_CH_A_PIN_MSK] = 1UL << a_pin;
     *_encc[c][ENC_CH_A_INV] = a_inv;
     *_encc[c][ENC_CH_A_ALL] = a_all;
-    *_encc[c][ENC_CH_B_PORT] = b_port;
-    *_encc[c][ENC_CH_B_PIN_MSK] = 1UL << b_pin;
-    *_encc[c][ENC_CH_Z_PORT] = z_port;
-    *_encc[c][ENC_CH_Z_PIN_MSK] = 1UL << z_pin;
-    *_encc[c][ENC_CH_Z_INV] = z_inv;
-    *_encc[c][ENC_CH_Z_ALL] = z_all;
+    *_encc[c][ENC_CH_B_USE] = b_use;
+    if ( b_use ) {
+        *_encc[c][ENC_CH_B_PORT] = b_port;
+        *_encc[c][ENC_CH_B_PIN_MSK] = 1UL << b_pin;
+    }
+    *_encc[c][ENC_CH_Z_USE] = z_use;
+    if ( b_port < GPIO_PORTS_MAX_CNT && b_pin < GPIO_PINS_MAX_CNT ) {
+        *_encc[c][ENC_CH_Z_PORT] = z_port;
+        *_encc[c][ENC_CH_Z_PIN_MSK] = 1UL << z_pin;
+        *_encc[c][ENC_CH_Z_INV] = z_inv;
+        *_encc[c][ENC_CH_Z_ALL] = z_all;
+    }
     _enc_spin_unlock();
 
     return 0;
@@ -894,6 +905,8 @@ int32_t parse_and_exec(const char *str)
     i32  enc_ch_data_set    (channel, name, value) \n\
     i32  enc_ch_pins_setup  (channel, a_port,a_pin,a_inv,a_all, b_port,b_pin, z_port,z_pin,z_inv,z_all) \n\
     i32  enc_ch_state_set   (channel, enable) \n\
+    i32  enc_ch_pos_get     (channel) \n\
+    i32  enc_ch_pos_set     (channel, pos) \n\
 \n\
   NOTE:\n\
     If you are using stdin/stdout mode, omit `%s` and any \" brackets\n\
