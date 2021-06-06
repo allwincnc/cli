@@ -894,6 +894,8 @@ int32_t parse_and_exec(const char *str)
     i32  enc_ch_data_set    (channel, name, value) \n\
     i32  enc_ch_pins_setup  (channel, a_port,a_pin,a_inv,a_all, b_port,b_pin, z_port,z_pin,z_inv,z_all) \n\
     i32  enc_ch_state_set   (channel, enable) \n\
+    i32  enc_ch_pos_get     (channel) \n\
+    i32  enc_ch_pos_set     (channel, pos) \n\
 \n\
   NOTE:\n\
     If you are using stdin/stdout mode, omit `%s` and any \" brackets\n\
