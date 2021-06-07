@@ -642,42 +642,6 @@ int32_t enc_ch_pins_setup(
 }
 
 static inline
-int32_t enc_ch_state_set(uint32_t c, uint32_t enable, uint32_t safe )
-{
-    uint32_t ch_cnt, ch;
-
-    if ( safe )
-    {
-        if ( c >= ENC_CH_MAX_CNT ) return -1;
-    }
-
-    ch_cnt = *_encd[ENC_CH_CNT];
-
-    if ( !enable )
-    {
-        if ( !(*_encc[c][ENC_CH_BUSY]) ) return 0;
-        if ( (c+1) == ch_cnt )
-        {
-            for ( ch = c; ch < ENC_CH_MAX_CNT && *_encc[ch][ENC_CH_BUSY]; ch-- );
-            if ( ch >= PWM_CH_MAX_CNT ) ch = 0;
-            ch_cnt = ch + 1;
-        }
-    }
-    else
-    {
-        if ( *_encc[c][ENC_CH_BUSY] ) return 0;
-        if ( c >= ch_cnt ) ch_cnt = c + 1;
-    }
-
-    _enc_spin_lock();
-    *_encc[c][ENC_CH_BUSY] = enable;
-    *_encd[ENC_CH_CNT] = ch_cnt;
-    _enc_spin_unlock();
-
-    return 0;
-}
-
-static inline
 int32_t enc_ch_pos_get(uint32_t c, uint32_t safe)
 {
     if ( safe )
@@ -904,7 +868,6 @@ int32_t parse_and_exec(const char *str)
     u32  enc_ch_data_get    (channel, name) \n\
     i32  enc_ch_data_set    (channel, name, value) \n\
     i32  enc_ch_pins_setup  (channel, a_port,a_pin,a_inv,a_all, b_port,b_pin, z_port,z_pin,z_inv,z_all) \n\
-    i32  enc_ch_state_set   (channel, enable) \n\
     i32  enc_ch_pos_get     (channel) \n\
     i32  enc_ch_pos_set     (channel, pos) \n\
 \n\
